@@ -28,13 +28,15 @@ func DiscoverDroids(beadsDir string) ([]Droid, error) {
 
 	var droids []Droid
 	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
-			name := strings.TrimSuffix(e.Name(), ".md")
-			droids = append(droids, Droid{
-				Name: name,
-				Path: filepath.Join(droidsDir, e.Name()),
-			})
+		// Skip directories, non-.md files, and hidden files (starting with .)
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") || strings.HasPrefix(e.Name(), ".") {
+			continue
 		}
+		name := strings.TrimSuffix(e.Name(), ".md")
+		droids = append(droids, Droid{
+			Name: name,
+			Path: filepath.Join(droidsDir, e.Name()),
+		})
 	}
 
 	return droids, nil
