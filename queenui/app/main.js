@@ -21,6 +21,7 @@ import { createTopNav } from './views/nav.js';
 import { createNewIssueDialog } from './views/new-issue-dialog.js';
 import { createMessagesView } from './views/messages.js';
 import { createAssignmentsView } from './views/assignments.js';
+import { createReservationsView } from './views/reservations.js';
 import { createWsClient } from './ws.js';
 
 /**
@@ -42,6 +43,7 @@ export function bootstrap(root_element) {
     <section id="detail-panel" class="route detail" hidden></section>
     <section id="messages-root" class="route messages" hidden></section>
     <section id="assignments-root" class="route assignments" hidden></section>
+    <section id="reservations-root" class="route reservations" hidden></section>
   `;
   render(shell, root_element);
 
@@ -57,12 +59,14 @@ export function bootstrap(root_element) {
   const messages_root = document.getElementById('messages-root');
   /** @type {HTMLElement|null} */
   const assignments_root = document.getElementById('assignments-root');
+  /** @type {HTMLElement|null} */
+  const reservations_root = document.getElementById('reservations-root');
 
   /** @type {HTMLElement|null} */
   const list_mount = document.getElementById('list-panel');
   /** @type {HTMLElement|null} */
   const detail_mount = document.getElementById('detail-panel');
-  if (list_mount && issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root) {
+  if (list_mount && issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root && reservations_root) {
     /** @type {HTMLElement|null} */
     const header_loading = document.getElementById('header-loading');
     const activity = createActivityIndicator(header_loading);
@@ -470,10 +474,16 @@ export function bootstrap(root_element) {
         // TODO: Trigger Queen data refresh via WebSocket
       }
     });
+    const reservations_view = createReservationsView(reservations_root, store, {
+      onRefresh: () => {
+        log('refresh reservations requested');
+        // TODO: Trigger Queen data refresh via WebSocket
+      }
+    });
 
     // Preload epics when switching to view
     /**
-     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments', filters: any }} s
+     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations', filters: any }} s
      */
     // --- Subscriptions: tab-level management and filter-driven updates ---
     /** @type {null | (() => Promise<void>)} */
@@ -515,7 +525,7 @@ export function bootstrap(root_element) {
     /**
      * Ensure only the active tab has subscriptions; clean up previous.
      *
-     * @param {{ view: 'issues'|'epics'|'board'|'messages'|'assignments', filters: any }} s
+     * @param {{ view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations', filters: any }} s
      */
     function ensureTabSubscriptions(s) {
       // Issues tab
@@ -691,16 +701,17 @@ export function bootstrap(root_element) {
     /**
      * Manage route visibility and list subscriptions per view.
      *
-     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments', filters: any }} s
+     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations', filters: any }} s
      */
     const onRouteChange = (s) => {
-      if (issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root) {
+      if (issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root && reservations_root) {
         // Underlying route visibility is controlled only by selected view
         issues_root.hidden = s.view !== 'issues';
         epics_root.hidden = s.view !== 'epics';
         board_root.hidden = s.view !== 'board';
         messages_root.hidden = s.view !== 'messages';
         assignments_root.hidden = s.view !== 'assignments';
+        reservations_root.hidden = s.view !== 'reservations';
         // detail_mount visibility handled in subscription above
       }
       // Ensure subscriptions for the active tab before loading the view to
@@ -721,6 +732,11 @@ export function bootstrap(root_element) {
         assignments_view.load();
       } else {
         assignments_view.unload();
+      }
+      if (s.view === 'reservations') {
+        reservations_view.load();
+      } else {
+        reservations_view.unload();
       }
       window.localStorage.setItem('beads-ui.view', s.view);
     };

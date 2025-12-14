@@ -6,7 +6,7 @@ import { debug } from '../utils/logging.js';
  *
  * @param {HTMLElement} mount_element
  * @param {{ getState: () => any, subscribe: (fn: (s: any) => void) => () => void }} store
- * @param {{ gotoView: (v: 'issues'|'epics'|'board'|'messages'|'assignments') => void }} router
+ * @param {{ gotoView: (v: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations') => void }} router
  */
 export function createTopNav(mount_element, store, router) {
   const log = debug('views:nav');
@@ -14,7 +14,7 @@ export function createTopNav(mount_element, store, router) {
   let unsubscribe = null;
 
   /**
-   * @param {'issues'|'epics'|'board'|'messages'|'assignments'} view
+   * @param {'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'} view
    * @returns {(ev: MouseEvent) => void}
    */
   function onClick(view) {
@@ -59,7 +59,13 @@ export function createTopNav(mount_element, store, router) {
             href="#/assignments"
             class="tab ${active === 'assignments' ? 'active' : ''}"
             @click=${onClick('assignments')}
-            >Assignments</a
+            >Assigns</a
+          >
+          <a
+            href="#/reservations"
+            class="tab ${active === 'reservations' ? 'active' : ''}"
+            @click=${onClick('reservations')}
+            >Files</a
           >
         </div>
       </nav>
