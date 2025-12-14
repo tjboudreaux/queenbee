@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'queen/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'queen/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go: ['1.21', '1.22']
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: queen/go.sum
+
+      - name: Download dependencies
+        working-directory: queen
+        run: go mod download
+
+      - name: Run tests
+        working-directory: queen
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.go == '1.22'
+        uses: codecov/codecov-action@v4
+        with:
+          files: queen/coverage.out
+          flags: unittests
+          fail_ci_if_error: false
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: queen/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          working-directory: queen
+          args: --timeout=5m
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: queen/go.sum
+
+      - name: Run govulncheck
+        working-directory: queen
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: queen/go.sum
+
+      - name: Build
+        working-directory: queen
+        run: |
+          go build -v -ldflags "-s -w" -o queen ./cmd/queen
+          ./queen version
+
+  coverage-check:
+    name: Coverage Check
+    runs-on: ubuntu-latest
+    needs: [test]
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: queen/go.sum
+
+      - name: Run tests with coverage
+        working-directory: queen
+        run: |
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out
+
+      - name: Check coverage threshold
+        working-directory: queen
+        run: |
+          # Extract total coverage percentage
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          
+          # Check against 40% threshold (can be raised as codebase matures)
+          # CLI code is difficult to unit test, so we set a reasonable threshold
+          THRESHOLD=40
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+            exit 1
+          fi
+          echo "Coverage check passed!"
