@@ -2456,3 +2456,260 @@ html[data-theme='dark'] {
     min-width: 0;
   }
 }
+
+/* ==========================================================================
+   Worktrees View
+   ========================================================================== */
+
+.route.worktrees {
+  padding: 0;
+  height: 100%;
+}
+
+.worktrees-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.worktrees-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.worktrees-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.worktrees-count {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel-bg);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.worktrees-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--muted);
+}
+
+.worktrees-empty p {
+  margin: 8px 0;
+}
+
+.worktrees-empty__hint {
+  font-size: 13px;
+}
+
+.worktrees-empty__hint code {
+  font-family: var(--mono);
+  background: var(--panel-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.worktrees-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.worktree-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-size: 13px;
+}
+
+.worktree-tab:hover {
+  background: var(--panel-bg);
+  border-color: var(--link);
+}
+
+.worktree-tab--selected {
+  background: color-mix(in srgb, var(--link) 10%, transparent);
+  border-color: var(--link);
+}
+
+.worktree-tab--current {
+  font-weight: 600;
+}
+
+.worktree-tab__icon {
+  font-size: 14px;
+}
+
+.worktree-tab__name {
+  font-weight: 500;
+}
+
+.worktree-tab__branch {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.worktree-detail {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.worktree-detail--empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 32px;
+}
+
+.worktree-detail__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.worktree-detail__header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.worktree-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.worktree-badge--current {
+  background: color-mix(in srgb, #10b981 20%, transparent);
+  color: #10b981;
+}
+
+.worktree-detail__info {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.worktree-detail__info dt {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.worktree-detail__info dd {
+  margin: 0;
+  font-size: 13px;
+}
+
+.worktree-detail__path {
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.worktree-detail__commit {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.worktree-detail__actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.worktree-detail__actions h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.worktree-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.worktrees-summary {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.worktrees-summary h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.worktrees-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.worktrees-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.worktrees-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.worktrees-table tr {
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.worktrees-table tbody tr:hover {
+  background: var(--panel-bg);
+}
+
+.worktrees-table__row--current {
+  background: color-mix(in srgb, #10b981 5%, transparent);
+}
+
+.worktrees-table__commit {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.worktrees-table__path {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -23,6 +23,7 @@ import { createMessagesView } from './views/messages.js';
 import { createAssignmentsView } from './views/assignments.js';
 import { createReservationsView } from './views/reservations.js';
 import { createDroidsView } from './views/droids.js';
+import { createWorktreesView } from './views/worktrees.js';
 import { createWsClient } from './ws.js';
 
 /**
@@ -46,6 +47,7 @@ export function bootstrap(root_element) {
     <section id="assignments-root" class="route assignments" hidden></section>
     <section id="reservations-root" class="route reservations" hidden></section>
     <section id="droids-root" class="route droids" hidden></section>
+    <section id="worktrees-root" class="route worktrees" hidden></section>
   `;
   render(shell, root_element);
 
@@ -65,12 +67,14 @@ export function bootstrap(root_element) {
   const reservations_root = document.getElementById('reservations-root');
   /** @type {HTMLElement|null} */
   const droids_root = document.getElementById('droids-root');
+  /** @type {HTMLElement|null} */
+  const worktrees_root = document.getElementById('worktrees-root');
 
   /** @type {HTMLElement|null} */
   const list_mount = document.getElementById('list-panel');
   /** @type {HTMLElement|null} */
   const detail_mount = document.getElementById('detail-panel');
-  if (list_mount && issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root && reservations_root && droids_root) {
+  if (list_mount && issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root && reservations_root && droids_root && worktrees_root) {
     /** @type {HTMLElement|null} */
     const header_loading = document.getElementById('header-loading');
     const activity = createActivityIndicator(header_loading);
@@ -490,10 +494,37 @@ export function bootstrap(root_element) {
         // TODO: Trigger Queen data refresh via WebSocket
       }
     });
+    const worktrees_view = createWorktreesView(worktrees_root, store, {
+      /** @param {string} path */
+      onSelect: (path) => {
+        log('worktree selected: %s', path);
+      },
+      /** @param {string} path */
+      onSwitch: (path) => {
+        log('switch worktree: %s', path);
+        showToast(`Switching to worktree: ${path.split('/').pop()}`, 'info');
+        // TODO: Actually switch worktree context
+      },
+      /** @param {string} path */
+      onFilterIssues: (path) => {
+        log('filter issues by worktree: %s', path);
+        router.gotoView('issues');
+      },
+      /** @param {string} path */
+      onFilterReservations: (path) => {
+        log('filter reservations by worktree: %s', path);
+        router.gotoView('reservations');
+      },
+      /** @param {string} path */
+      onFilterAssignments: (path) => {
+        log('filter assignments by worktree: %s', path);
+        router.gotoView('assignments');
+      }
+    });
 
     // Preload epics when switching to view
     /**
-     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids', filters: any }} s
+     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids'|'worktrees', filters: any }} s
      */
     // --- Subscriptions: tab-level management and filter-driven updates ---
     /** @type {null | (() => Promise<void>)} */
@@ -535,7 +566,7 @@ export function bootstrap(root_element) {
     /**
      * Ensure only the active tab has subscriptions; clean up previous.
      *
-     * @param {{ view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids', filters: any }} s
+     * @param {{ view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids'|'worktrees', filters: any }} s
      */
     function ensureTabSubscriptions(s) {
       // Issues tab
@@ -711,10 +742,10 @@ export function bootstrap(root_element) {
     /**
      * Manage route visibility and list subscriptions per view.
      *
-     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids', filters: any }} s
+     * @param {{ selected_id: string | null, view: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids'|'worktrees', filters: any }} s
      */
     const onRouteChange = (s) => {
-      if (issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root && reservations_root && droids_root) {
+      if (issues_root && epics_root && board_root && detail_mount && messages_root && assignments_root && reservations_root && droids_root && worktrees_root) {
         // Underlying route visibility is controlled only by selected view
         issues_root.hidden = s.view !== 'issues';
         epics_root.hidden = s.view !== 'epics';
@@ -723,6 +754,7 @@ export function bootstrap(root_element) {
         assignments_root.hidden = s.view !== 'assignments';
         reservations_root.hidden = s.view !== 'reservations';
         droids_root.hidden = s.view !== 'droids';
+        worktrees_root.hidden = s.view !== 'worktrees';
         // detail_mount visibility handled in subscription above
       }
       // Ensure subscriptions for the active tab before loading the view to
@@ -748,6 +780,16 @@ export function bootstrap(root_element) {
         reservations_view.load();
       } else {
         reservations_view.unload();
+      }
+      if (s.view === 'droids') {
+        droids_view.load();
+      } else {
+        droids_view.unload();
+      }
+      if (s.view === 'worktrees') {
+        worktrees_view.load();
+      } else {
+        worktrees_view.unload();
       }
       window.localStorage.setItem('beads-ui.view', s.view);
     };

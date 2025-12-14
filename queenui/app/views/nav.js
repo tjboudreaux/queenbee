@@ -6,7 +6,7 @@ import { debug } from '../utils/logging.js';
  *
  * @param {HTMLElement} mount_element
  * @param {{ getState: () => any, subscribe: (fn: (s: any) => void) => () => void }} store
- * @param {{ gotoView: (v: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations') => void }} router
+ * @param {{ gotoView: (v: 'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids'|'worktrees') => void }} router
  */
 export function createTopNav(mount_element, store, router) {
   const log = debug('views:nav');
@@ -14,7 +14,7 @@ export function createTopNav(mount_element, store, router) {
   let unsubscribe = null;
 
   /**
-   * @param {'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'} view
+   * @param {'issues'|'epics'|'board'|'messages'|'assignments'|'reservations'|'droids'|'worktrees'} view
    * @returns {(ev: MouseEvent) => void}
    */
   function onClick(view) {
@@ -66,6 +66,18 @@ export function createTopNav(mount_element, store, router) {
             class="tab ${active === 'reservations' ? 'active' : ''}"
             @click=${onClick('reservations')}
             >Files</a
+          >
+          <a
+            href="#/droids"
+            class="tab ${active === 'droids' ? 'active' : ''}"
+            @click=${onClick('droids')}
+            >Droids</a
+          >
+          <a
+            href="#/worktrees"
+            class="tab ${active === 'worktrees' ? 'active' : ''}"
+            @click=${onClick('worktrees')}
+            >Trees</a
           >
         </div>
       </nav>

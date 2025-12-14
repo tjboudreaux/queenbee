@@ -179,3 +179,120 @@ export async function listDroids(options = {}) {
   const droids = Array.isArray(result.stdoutJson) ? result.stdoutJson : [];
   return { code: 0, droids };
 }
+
+/**
+ * Run a git command with provided arguments.
+ *
+ * @param {string[]} args - Arguments to pass (e.g., ["worktree", "list"]).
+ * @param {{ cwd?: string, timeout_ms?: number }} [options]
+ * @returns {Promise<{ code: number, stdout: string, stderr: string }>}
+ */
+export function runGit(args, options = {}) {
+  const spawn_opts = {
+    cwd: options.cwd || process.cwd(),
+    env: process.env,
+    shell: false
+  };
+
+  return new Promise((resolve) => {
+    const child = spawn('git', args, spawn_opts);
+
+    /** @type {string[]} */
+    const out_chunks = [];
+    /** @type {string[]} */
+    const err_chunks = [];
+
+    if (child.stdout) {
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', (chunk) => {
+        out_chunks.push(String(chunk));
+      });
+    }
+    if (child.stderr) {
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', (chunk) => {
+        err_chunks.push(String(chunk));
+      });
+    }
+
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let timer;
+    if (options.timeout_ms && options.timeout_ms > 0) {
+      timer = setTimeout(() => {
+        child.kill('SIGKILL');
+      }, options.timeout_ms);
+      timer.unref?.();
+    }
+
+    /**
+     * @param {number | string | null} code
+     */
+    const finish = (code) => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      resolve({
+        code: Number(code || 0),
+        stdout: out_chunks.join(''),
+        stderr: err_chunks.join('')
+      });
+    };
+
+    child.on('error', (err) => {
+      log('spawn error running git %o', err);
+      finish(127);
+    });
+    child.on('close', (code) => {
+      finish(code);
+    });
+  });
+}
+
+/**
+ * List all git worktrees.
+ *
+ * @param {{ cwd?: string, timeout_ms?: number }} [options]
+ * @returns {Promise<{ code: number, worktrees?: Array<{ path: string, branch: string, commit: string, is_bare?: boolean }>, stderr?: string }>}
+ */
+export async function listWorktrees(options = {}) {
+  const result = await runGit(['worktree', 'list', '--porcelain'], options);
+  if (result.code !== 0) {
+    return { code: result.code, stderr: result.stderr };
+  }
+
+  /** @type {Array<{ path: string, branch: string, commit: string, is_bare?: boolean }>} */
+  const worktrees = [];
+  /** @type {{ path?: string, branch?: string, commit?: string, is_bare?: boolean }} */
+  let current = {};
+
+  for (const line of result.stdout.split('\n')) {
+    if (line.startsWith('worktree ')) {
+      if (current.path) {
+        worktrees.push({
+          path: current.path,
+          branch: current.branch || 'detached',
+          commit: current.commit || '',
+          is_bare: current.is_bare
+        });
+      }
+      current = { path: line.slice(9) };
+    } else if (line.startsWith('HEAD ')) {
+      current.commit = line.slice(5);
+    } else if (line.startsWith('branch ')) {
+      current.branch = line.slice(7).replace('refs/heads/', '');
+    } else if (line === 'bare') {
+      current.is_bare = true;
+    }
+  }
+
+  if (current.path) {
+    worktrees.push({
+      path: current.path,
+      branch: current.branch || 'detached',
+      commit: current.commit || '',
+      is_bare: current.is_bare
+    });
+  }
+
+  return { code: 0, worktrees };
+}
