@@ -1,0 +1,24 @@
+/**
+ * Print CLI usage to a stream-like target.
+ *
+ * @param {{ write: (chunk: string) => any }} out_stream
+ */
+export function printUsage(out_stream) {
+  const lines = [
+    'Usage: queenui <command> [options]',
+    '',
+    'Commands:',
+    '  start       Start the UI server',
+    '  stop        Stop the UI server',
+    '  restart     Restart the UI server',
+    '',
+    'Options:',
+    '  -h, --help    Show this help message',
+    '  -d, --debug   Enable debug logging',
+    '      --open    Open the browser after start/restart',
+    ''
+  ];
+  for (const line of lines) {
+    out_stream.write(line + '\n');
+  }
+}
