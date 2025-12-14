@@ -1,6 +1,7 @@
 package assignments
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -328,5 +329,99 @@ func TestNotFoundError(t *testing.T) {
 	errWithIssue := &NotFoundError{IssueID: "qb-001"}
 	if errWithIssue.Error() != "no active assignment for issue: qb-001" {
 		t.Errorf("Error() = %q", errWithIssue.Error())
+	}
+}
+
+func TestStore_Release_NotFound(t *testing.T) {
+	store := setupTestStore(t)
+
+	err := store.Release("nonexistent", "reason")
+	if err == nil {
+		t.Error("Expected error for nonexistent assignment")
+	}
+}
+
+func TestStore_Release_WithEmptyReason(t *testing.T) {
+	store := setupTestStore(t)
+
+	assignment, _ := store.Assign("qb-001", "alice", "queen", AssignOptions{
+		Reason: "original reason",
+	})
+
+	// Release without providing a reason should keep original
+	if err := store.Release(assignment.ID, ""); err != nil {
+		t.Fatalf("Release failed: %v", err)
+	}
+
+	released, _ := store.GetByID(assignment.ID)
+	if released.Reason != "original reason" {
+		t.Errorf("Reason should be unchanged, got %q", released.Reason)
+	}
+}
+
+func TestStore_Complete_NotFound(t *testing.T) {
+	store := setupTestStore(t)
+
+	err := store.Complete("nonexistent", "reason")
+	if err == nil {
+		t.Error("Expected error for nonexistent assignment")
+	}
+}
+
+func TestStore_Complete_WithEmptyReason(t *testing.T) {
+	store := setupTestStore(t)
+
+	assignment, _ := store.Assign("qb-001", "alice", "queen", AssignOptions{
+		Reason: "original reason",
+	})
+
+	if err := store.Complete(assignment.ID, ""); err != nil {
+		t.Fatalf("Complete failed: %v", err)
+	}
+
+	completed, _ := store.GetByID(assignment.ID)
+	if completed.Reason != "original reason" {
+		t.Errorf("Reason should be unchanged, got %q", completed.Reason)
+	}
+}
+
+func TestStore_ReleaseAllForDroid_Empty(t *testing.T) {
+	store := setupTestStore(t)
+
+	// Release all for droid with no assignments
+	count, err := store.ReleaseAllForDroid("nobody", "reason")
+	if err != nil {
+		t.Fatalf("ReleaseAllForDroid failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected 0 released, got %d", count)
+	}
+}
+
+func TestStore_ReleaseAllForDroid_WithEmptyReason(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Assign("qb-001", "alice", "queen", AssignOptions{Reason: "original"})
+
+	count, err := store.ReleaseAllForDroid("alice", "")
+	if err != nil {
+		t.Fatalf("ReleaseAllForDroid failed: %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("Expected 1 released, got %d", count)
+	}
+}
+
+func TestIsNotFoundError(t *testing.T) {
+	notFoundErr := &NotFoundError{ID: "test"}
+	if !isNotFoundError(notFoundErr) {
+		t.Error("Expected isNotFoundError to return true")
+	}
+
+	otherErr := fmt.Errorf("other error")
+	if isNotFoundError(otherErr) {
+		t.Error("Expected isNotFoundError to return false for non-NotFoundError")
 	}
 }

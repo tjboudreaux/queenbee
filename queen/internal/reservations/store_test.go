@@ -386,3 +386,123 @@ func TestNotActiveError(t *testing.T) {
 		t.Errorf("Error() = %q, want %q", err.Error(), expected)
 	}
 }
+
+func TestStore_Release_NotFound(t *testing.T) {
+	store := setupTestStore(t)
+
+	err := store.Release("nonexistent")
+	if err == nil {
+		t.Error("Expected error for nonexistent reservation")
+	}
+}
+
+func TestStore_Release_AlreadyReleased(t *testing.T) {
+	store := setupTestStore(t)
+
+	res, _, _ := store.Reserve("alice", "src/**", ReserveOptions{})
+	store.Release(res.ID)
+
+	// Releasing again should succeed (idempotent)
+	err := store.Release(res.ID)
+	if err != nil {
+		t.Errorf("Second release should succeed: %v", err)
+	}
+}
+
+func TestStore_ReleaseAll_NoActive(t *testing.T) {
+	store := setupTestStore(t)
+
+	count, err := store.ReleaseAll("nobody")
+	if err != nil {
+		t.Fatalf("ReleaseAll failed: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Expected 0 released, got %d", count)
+	}
+}
+
+func TestStore_ReleasePattern_NoMatch(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Reserve("alice", "src/**", ReserveOptions{})
+
+	count, err := store.ReleasePattern("alice", "tests/**")
+	if err != nil {
+		t.Fatalf("ReleasePattern failed: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Expected 0 released (no match), got %d", count)
+	}
+}
+
+func TestStore_CheckPath_NoReservations(t *testing.T) {
+	store := setupTestStore(t)
+
+	reservations, err := store.CheckPath("src/main.go")
+	if err != nil {
+		t.Fatalf("CheckPath failed: %v", err)
+	}
+	if len(reservations) != 0 {
+		t.Errorf("Expected 0 reservations, got %d", len(reservations))
+	}
+}
+
+func TestStore_Renew_NotFound(t *testing.T) {
+	store := setupTestStore(t)
+
+	err := store.Renew("nonexistent", time.Hour)
+	if err == nil {
+		t.Error("Expected error for nonexistent reservation")
+	}
+}
+
+func TestStore_Renew_AlreadyReleased(t *testing.T) {
+	store := setupTestStore(t)
+
+	res, _, _ := store.Reserve("alice", "src/**", ReserveOptions{})
+	store.Release(res.ID)
+
+	err := store.Renew(res.ID, time.Hour)
+	if err == nil {
+		t.Error("Expected error for released reservation")
+	}
+}
+
+func TestStore_Renew_BeforeExpiry(t *testing.T) {
+	store := setupTestStore(t)
+
+	// Create with reasonable TTL
+	res, _, _ := store.Reserve("alice", "src/**", ReserveOptions{TTL: time.Hour})
+	originalExpiry := res.ExpiresAt
+
+	// Renew should extend from current expiry
+	err := store.Renew(res.ID, time.Hour)
+	if err != nil {
+		t.Fatalf("Renew failed: %v", err)
+	}
+
+	renewed, _ := store.GetByID(res.ID)
+	if !renewed.ExpiresAt.After(originalExpiry) {
+		t.Error("Renewed reservation should have later expiry")
+	}
+}
+
+func TestGetPatternBase(t *testing.T) {
+	tests := []struct {
+		pattern  string
+		expected string
+	}{
+		{"src/**", "src/"},
+		{"src/pkg/**", "src/pkg/"},
+		{"**", ""},
+		{"*.go", ""},
+		{"src/main.go", "src/main.go"}, // No wildcards = return full pattern
+	}
+
+	for _, tc := range tests {
+		result := getPatternBase(tc.pattern)
+		if result != tc.expected {
+			t.Errorf("getPatternBase(%q) = %q, want %q", tc.pattern, result, tc.expected)
+		}
+	}
+}

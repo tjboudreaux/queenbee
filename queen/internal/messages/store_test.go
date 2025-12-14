@@ -391,3 +391,130 @@ func TestSortMessagesByDate(t *testing.T) {
 		t.Errorf("Ascending sort failed: %v", []string{msgs[0].ID, msgs[1].ID, msgs[2].ID})
 	}
 }
+
+func TestStore_GetSent_WithLimit(t *testing.T) {
+	store := setupTestStore(t)
+
+	for i := 0; i < 10; i++ {
+		store.Send("alice", "bob", "Message", "", SendOptions{})
+	}
+
+	sent, err := store.GetSent("alice", 3)
+	if err != nil {
+		t.Fatalf("GetSent failed: %v", err)
+	}
+
+	if len(sent) != 3 {
+		t.Errorf("Expected 3 messages (limit), got %d", len(sent))
+	}
+}
+
+func TestStore_GetSent_ExcludesDeleted(t *testing.T) {
+	store := setupTestStore(t)
+
+	msg1, _ := store.Send("alice", "bob", "Keep", "", SendOptions{})
+	msg2, _ := store.Send("alice", "charlie", "Delete", "", SendOptions{})
+
+	store.Delete(msg2.ID)
+
+	sent, _ := store.GetSent("alice", 10)
+	if len(sent) != 1 {
+		t.Fatalf("Expected 1 sent message after delete, got %d", len(sent))
+	}
+	if sent[0].ID != msg1.ID {
+		t.Errorf("Wrong message: expected %s, got %s", msg1.ID, sent[0].ID)
+	}
+}
+
+func TestStore_GetThread_ExcludesDeleted(t *testing.T) {
+	store := setupTestStore(t)
+
+	msg1, _ := store.Send("alice", "bob", "Start", "", SendOptions{})
+	msg2, _ := store.Reply(msg1.ID, "bob", "Reply")
+
+	store.Delete(msg2.ID)
+
+	thread, _ := store.GetThread(msg1.ID)
+	if len(thread) != 1 {
+		t.Fatalf("Expected 1 message in thread after delete, got %d", len(thread))
+	}
+}
+
+func TestStore_GetThread_IncludesRoot(t *testing.T) {
+	store := setupTestStore(t)
+
+	// Message with no explicit thread ID (root of its own thread)
+	msg, _ := store.Send("alice", "bob", "Standalone", "", SendOptions{})
+
+	thread, _ := store.GetThread(msg.ID)
+	if len(thread) != 1 {
+		t.Fatalf("Expected 1 message (the root), got %d", len(thread))
+	}
+	if thread[0].ID != msg.ID {
+		t.Errorf("Expected root message in thread")
+	}
+}
+
+func TestStore_Delete_NotFound(t *testing.T) {
+	store := setupTestStore(t)
+
+	err := store.Delete("nonexistent")
+	if err == nil {
+		t.Error("Expected error for nonexistent message")
+	}
+}
+
+func TestStore_MarkRead_NotFound(t *testing.T) {
+	store := setupTestStore(t)
+
+	err := store.MarkRead("nonexistent")
+	if err == nil {
+		t.Error("Expected error for nonexistent message")
+	}
+}
+
+func TestStore_Reply_NotFound(t *testing.T) {
+	store := setupTestStore(t)
+
+	_, err := store.Reply("nonexistent", "bob", "Reply")
+	if err == nil {
+		t.Error("Expected error for nonexistent original message")
+	}
+}
+
+func TestStore_GetByID_DeletedMessage(t *testing.T) {
+	store := setupTestStore(t)
+
+	msg, _ := store.Send("alice", "bob", "Test", "", SendOptions{})
+	store.Delete(msg.ID)
+
+	_, err := store.GetByID(msg.ID)
+	if err == nil {
+		t.Error("Expected error for deleted message")
+	}
+}
+
+func TestStore_SendWithExplicitThreadID(t *testing.T) {
+	store := setupTestStore(t)
+
+	msg, _ := store.Send("alice", "bob", "Test", "", SendOptions{
+		ThreadID: "custom-thread-123",
+	})
+
+	if msg.ThreadID != "custom-thread-123" {
+		t.Errorf("ThreadID = %q, want %q", msg.ThreadID, "custom-thread-123")
+	}
+}
+
+func TestStore_GetInbox_Empty(t *testing.T) {
+	store := setupTestStore(t)
+
+	msgs, err := store.GetInbox("nobody", InboxOptions{})
+	if err != nil {
+		t.Fatalf("GetInbox failed: %v", err)
+	}
+
+	if len(msgs) != 0 {
+		t.Errorf("Expected empty inbox, got %d messages", len(msgs))
+	}
+}

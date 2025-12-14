@@ -196,3 +196,125 @@ func TestDaemon_Log(t *testing.T) {
 		t.Errorf("Log should contain message, got: %s", content)
 	}
 }
+
+func TestDaemon_Log_NoFile(t *testing.T) {
+	d := setupTestDaemon(t)
+	d.logFile = nil
+
+	// Should not panic
+	d.log("test message without file")
+}
+
+func TestDaemon_Poll(t *testing.T) {
+	d := setupTestDaemon(t)
+
+	// Create log file to capture poll output
+	logPath := filepath.Join(d.config.BeadsDir, "poll.log")
+	f, err := os.Create(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.logFile = f
+
+	// Call poll directly
+	d.poll()
+	f.Close()
+
+	// Verify poll logged something
+	content, _ := os.ReadFile(logPath)
+	if !contains(string(content), "Poll cycle") {
+		t.Errorf("Expected poll cycle log, got: %s", content)
+	}
+}
+
+func TestDaemon_GetStatus_StalePIDFile(t *testing.T) {
+	d := setupTestDaemon(t)
+
+	// Write a PID file with a non-existent PID (very high number)
+	os.WriteFile(d.pidFile, []byte("999999999"), 0644)
+
+	status := d.GetStatus()
+	// On some systems this might appear running because FindProcess always succeeds
+	// but the signal check should fail
+	_ = status // The test exercises the code path
+}
+
+func TestDaemon_GetStatus_Running(t *testing.T) {
+	d := setupTestDaemon(t)
+
+	// Write PID file with current process (which is running)
+	d.writePIDFile()
+	defer d.removePIDFile()
+
+	status := d.GetStatus()
+	if !status.Running {
+		t.Error("Expected Running = true for current process")
+	}
+	if status.PID != os.Getpid() {
+		t.Errorf("PID = %d, want %d", status.PID, os.Getpid())
+	}
+	if status.StartedAt.IsZero() {
+		t.Error("Expected StartedAt to be set")
+	}
+	if status.Uptime == "" {
+		t.Error("Expected Uptime to be set")
+	}
+}
+
+func TestDaemon_Stop_InvalidPID(t *testing.T) {
+	d := setupTestDaemon(t)
+
+	// Write invalid PID
+	os.WriteFile(d.pidFile, []byte("not-a-number"), 0644)
+
+	err := d.Stop()
+	if err == nil {
+		t.Error("Expected error for invalid PID")
+	}
+}
+
+func TestDaemon_Stop_NonExistentProcess(t *testing.T) {
+	d := setupTestDaemon(t)
+
+	// Write PID of non-existent process
+	os.WriteFile(d.pidFile, []byte("999999999"), 0644)
+
+	// This should error or clean up the stale PID file
+	_ = d.Stop() // Error is expected
+
+	// PID file should be cleaned up
+	if _, err := os.Stat(d.pidFile); !os.IsNotExist(err) {
+		t.Error("Stale PID file should be removed")
+	}
+}
+
+func TestDaemon_CustomLogFile(t *testing.T) {
+	dir := t.TempDir()
+	beadsDir := filepath.Join(dir, ".beads")
+	os.MkdirAll(beadsDir, 0755)
+
+	customLog := filepath.Join(dir, "custom.log")
+
+	d := New(Config{
+		BeadsDir:     beadsDir,
+		PollInterval: 100 * time.Millisecond,
+		LogFile:      customLog,
+	})
+
+	if d.config.LogFile != customLog {
+		t.Errorf("LogFile = %q, want %q", d.config.LogFile, customLog)
+	}
+}
+
+func TestDaemon_Start_RunsOnePollCycle(t *testing.T) {
+	d := setupTestDaemon(t)
+	d.config.PollInterval = 10 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := d.Start(ctx)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+}

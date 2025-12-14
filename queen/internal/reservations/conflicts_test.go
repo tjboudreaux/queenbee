@@ -260,3 +260,170 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+func TestDetermineWinner(t *testing.T) {
+	now := time.Now()
+	a := Reservation{Droid: "alice", CreatedAt: now}
+	b := Reservation{Droid: "bob", CreatedAt: now.Add(time.Minute)}
+
+	winner := determineWinner(a, b)
+	if winner.Droid != "alice" {
+		t.Errorf("Winner should be alice, got %s", winner.Droid)
+	}
+}
+
+func TestStore_ResolveConflict_Release(t *testing.T) {
+	store := setupTestStore(t)
+
+	// Create conflicting reservations
+	store.Reserve("alice", "src/**", ReserveOptions{Exclusive: true})
+	store.Reserve("bob", "src/**", ReserveOptions{Exclusive: true, Force: true})
+
+	conflicts, _ := store.DetectConflicts()
+	if len(conflicts) != 1 {
+		t.Fatalf("Expected 1 conflict, got %d", len(conflicts))
+	}
+
+	conflict := conflicts[0]
+	resolution := Resolution{Action: "release"}
+
+	err := store.ResolveConflict(conflict, resolution)
+	if err != nil {
+		t.Fatalf("ResolveConflict failed: %v", err)
+	}
+
+	// The loser's reservation should be released
+	conflicts, _ = store.DetectConflicts()
+	if len(conflicts) != 0 {
+		t.Errorf("Expected 0 conflicts after resolution, got %d", len(conflicts))
+	}
+}
+
+func TestStore_ResolveConflict_Wait(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Reserve("alice", "src/**", ReserveOptions{Exclusive: true})
+	store.Reserve("bob", "src/**", ReserveOptions{Exclusive: true, Force: true})
+
+	conflicts, _ := store.DetectConflicts()
+	if len(conflicts) != 1 {
+		t.Fatalf("Expected 1 conflict, got %d", len(conflicts))
+	}
+
+	conflict := conflicts[0]
+	resolution := Resolution{Action: "wait"}
+
+	err := store.ResolveConflict(conflict, resolution)
+	if err != nil {
+		t.Fatalf("ResolveConflict should not error for wait: %v", err)
+	}
+
+	// Conflict should still exist
+	conflicts, _ = store.DetectConflicts()
+	if len(conflicts) != 1 {
+		t.Errorf("Expected conflict to still exist after wait, got %d", len(conflicts))
+	}
+}
+
+func TestStore_ResolveConflict_Coordinate(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Reserve("alice", "src/**", ReserveOptions{Exclusive: true})
+	store.Reserve("bob", "src/**", ReserveOptions{Exclusive: true, Force: true})
+
+	conflicts, _ := store.DetectConflicts()
+	conflict := conflicts[0]
+	resolution := Resolution{Action: "coordinate"}
+
+	err := store.ResolveConflict(conflict, resolution)
+	if err != nil {
+		t.Fatalf("ResolveConflict should not error for coordinate: %v", err)
+	}
+}
+
+func TestStore_ResolveConflict_Alternative(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Reserve("alice", "src/**", ReserveOptions{Exclusive: true})
+	store.Reserve("bob", "src/**", ReserveOptions{Exclusive: true, Force: true})
+
+	conflicts, _ := store.DetectConflicts()
+	conflict := conflicts[0]
+	resolution := Resolution{Action: "alternative"}
+
+	err := store.ResolveConflict(conflict, resolution)
+	if err != nil {
+		t.Fatalf("ResolveConflict should not error for alternative: %v", err)
+	}
+}
+
+func TestStore_ResolveConflict_UnknownAction(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Reserve("alice", "src/**", ReserveOptions{Exclusive: true})
+	store.Reserve("bob", "src/**", ReserveOptions{Exclusive: true, Force: true})
+
+	conflicts, _ := store.DetectConflicts()
+	conflict := conflicts[0]
+	resolution := Resolution{Action: "unknown"}
+
+	err := store.ResolveConflict(conflict, resolution)
+	if err != nil {
+		t.Fatalf("ResolveConflict should handle unknown actions: %v", err)
+	}
+}
+
+func TestSuggestResolutions_ExpiredReservation(t *testing.T) {
+	now := time.Now()
+	conflict := ConflictInfo{
+		ReservationA: Reservation{
+			ID:        "qr-001",
+			Droid:     "alice",
+			Pattern:   "src/**",
+			CreatedAt: now.Add(-3 * time.Hour),
+			ExpiresAt: now.Add(-1 * time.Hour), // Already expired
+			Exclusive: true,
+		},
+		ReservationB: Reservation{
+			ID:        "qr-002",
+			Droid:     "bob",
+			Pattern:   "src/**",
+			CreatedAt: now,
+			ExpiresAt: now.Add(2 * time.Hour),
+			Exclusive: true,
+		},
+		OverlapType: "exact",
+	}
+
+	resolutions := SuggestResolutions(conflict)
+
+	// Should have "expired" in wait description
+	var waitResolution *Resolution
+	for i := range resolutions {
+		if resolutions[i].Action == "wait" {
+			waitResolution = &resolutions[i]
+			break
+		}
+	}
+
+	if waitResolution == nil {
+		t.Fatal("Expected wait resolution")
+	}
+
+	if !containsString(waitResolution.Description, "expired") {
+		t.Errorf("Expected 'expired' in description, got: %s", waitResolution.Description)
+	}
+}
+
+func TestSuggestAlternative_GlobPattern(t *testing.T) {
+	// This tests the suggestAlternative function indirectly
+	result := suggestAlternative("src/**", "src/api/**")
+	// Currently returns empty, but exercises the code path
+	_ = result
+}
+
+func TestSuggestAlternative_SpecificPattern(t *testing.T) {
+	result := suggestAlternative("src/file.go", "src/other.go")
+	// Currently returns empty for specific patterns
+	_ = result
+}

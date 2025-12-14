@@ -24,6 +24,93 @@ func TestFindBeadsDir_FromEnv(t *testing.T) {
 	}
 }
 
+func TestFindBeadsDir_WalksUp(t *testing.T) {
+	// Clear env var to test directory walking
+	os.Unsetenv("BEADS_DIR")
+
+	// Create a temp directory structure: /tmp/xxx/repo/.beads and /tmp/xxx/repo/src/pkg
+	dir := t.TempDir()
+	repoRoot := filepath.Join(dir, "repo")
+	beadsDir := filepath.Join(repoRoot, ".beads")
+	nestedDir := filepath.Join(repoRoot, "src", "pkg")
+
+	if err := os.MkdirAll(beadsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to nested directory
+	originalWd, _ := os.Getwd()
+	defer os.Chdir(originalWd)
+
+	if err := os.Chdir(nestedDir); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := FindBeadsDir()
+	if err != nil {
+		t.Fatalf("FindBeadsDir failed: %v", err)
+	}
+
+	// Resolve symlinks for comparison (macOS /var -> /private/var)
+	expectedResolved, _ := filepath.EvalSymlinks(beadsDir)
+	resultResolved, _ := filepath.EvalSymlinks(result)
+
+	if resultResolved != expectedResolved {
+		t.Errorf("FindBeadsDir = %q, want %q", result, beadsDir)
+	}
+}
+
+func TestFindBeadsDir_NotFound(t *testing.T) {
+	// Clear env var
+	os.Unsetenv("BEADS_DIR")
+
+	// Create a temp dir with no .beads
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "no", "beads", "here")
+	os.MkdirAll(nested, 0755)
+
+	originalWd, _ := os.Getwd()
+	defer os.Chdir(originalWd)
+
+	os.Chdir(nested)
+
+	_, err := FindBeadsDir()
+	if err == nil {
+		t.Error("Expected error when .beads not found")
+	}
+}
+
+func TestFindBeadsDir_FromCurrentDir(t *testing.T) {
+	// Clear env var
+	os.Unsetenv("BEADS_DIR")
+
+	// Create a temp dir with .beads in current directory
+	dir := t.TempDir()
+	beadsDir := filepath.Join(dir, ".beads")
+	os.MkdirAll(beadsDir, 0755)
+
+	originalWd, _ := os.Getwd()
+	defer os.Chdir(originalWd)
+
+	os.Chdir(dir)
+
+	result, err := FindBeadsDir()
+	if err != nil {
+		t.Fatalf("FindBeadsDir failed: %v", err)
+	}
+
+	// Resolve symlinks for comparison (macOS /var -> /private/var)
+	expectedResolved, _ := filepath.EvalSymlinks(beadsDir)
+	resultResolved, _ := filepath.EvalSymlinks(result)
+
+	if resultResolved != expectedResolved {
+		t.Errorf("FindBeadsDir = %q, want %q", result, beadsDir)
+	}
+}
+
 func TestFindFactoryDir(t *testing.T) {
 	beadsDir := "/some/repo/.beads"
 	expected := "/some/repo/.factory"
