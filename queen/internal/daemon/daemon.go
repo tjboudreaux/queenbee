@@ -6,11 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/tjboudreaux/queenbee/queen/internal/registry"
 )
 
 // Config holds daemon configuration.
@@ -18,14 +22,18 @@ type Config struct {
 	BeadsDir     string
 	PollInterval time.Duration
 	LogFile      string
+	WorkDir      string // Project root directory
 }
 
 // Status represents daemon status.
 type Status struct {
-	Running   bool      `json:"running"`
-	PID       int       `json:"pid,omitempty"`
-	StartedAt time.Time `json:"started_at,omitempty"`
-	Uptime    string    `json:"uptime,omitempty"`
+	Running        bool                     `json:"running"`
+	PID            int                      `json:"pid,omitempty"`
+	StartedAt      time.Time                `json:"started_at,omitempty"`
+	Uptime         string                   `json:"uptime,omitempty"`
+	RunningAgents  int                      `json:"running_agents,omitempty"`
+	MaxAgents      int                      `json:"max_agents,omitempty"`
+	RegistryLoaded bool                     `json:"registry_loaded,omitempty"`
 }
 
 // Daemon manages the queen daemon process.
@@ -34,6 +42,8 @@ type Daemon struct {
 	pidFile  string
 	logFile  *os.File
 	stopChan chan struct{}
+	registry *registry.Registry
+	runner   *registry.Runner
 }
 
 // New creates a new daemon instance.
@@ -70,6 +80,27 @@ func (d *Daemon) Start(ctx context.Context) error {
 		return fmt.Errorf("opening log file: %w", err)
 	}
 	defer d.logFile.Close()
+
+	// Load registry
+	workDir := d.config.WorkDir
+	if workDir == "" {
+		workDir = filepath.Dir(d.config.BeadsDir)
+	}
+	
+	reg, err := registry.Load(workDir)
+	if err != nil {
+		d.log("Warning: No registry loaded: %v", err)
+		d.log("Create a .queen.yaml file to enable agent orchestration")
+	} else {
+		d.registry = reg
+		d.runner = registry.NewRunner(reg, d.config.BeadsDir, workDir)
+		d.log("Registry loaded: %d agents, max_agents=%d", len(reg.Agents), reg.Daemon.MaxAgents)
+		
+		// Use registry poll interval if not overridden
+		if d.config.PollInterval == 0 {
+			d.config.PollInterval = reg.Daemon.PollInterval
+		}
+	}
 
 	d.log("Daemon started (pid: %d, poll interval: %s)", os.Getpid(), d.config.PollInterval)
 
@@ -165,12 +196,25 @@ func (d *Daemon) GetStatus() Status {
 	startedAt := info.ModTime()
 	uptime := time.Since(startedAt).Round(time.Second)
 
-	return Status{
+	status := Status{
 		Running:   true,
 		PID:       pid,
 		StartedAt: startedAt,
 		Uptime:    uptime.String(),
 	}
+
+	// Add runner stats if available
+	if d.runner != nil {
+		stats := d.runner.Stats()
+		status.RunningAgents = stats.TotalRunning
+		status.MaxAgents = stats.MaxAgents
+		status.RegistryLoaded = true
+	} else if d.registry != nil {
+		status.RegistryLoaded = true
+		status.MaxAgents = d.registry.Daemon.MaxAgents
+	}
+
+	return status
 }
 
 // IsRunning checks if the daemon is running.
@@ -182,14 +226,114 @@ func (d *Daemon) IsRunning() bool {
 func (d *Daemon) poll() {
 	d.log("Poll cycle started")
 
-	// TODO: Implement actual polling logic
-	// 1. Scan for new epics to decompose
-	// 2. Scan for ready unassigned tasks
-	// 3. Check for reservation conflicts
-	// 4. Check for stale assignments
-	// 5. Process inbox messages
+	// Skip if no registry loaded
+	if d.registry == nil || d.runner == nil {
+		d.log("Poll skipped: no registry loaded")
+		return
+	}
 
-	d.log("Poll cycle completed")
+	// Cleanup stale processes
+	if cleaned := d.runner.CleanupStale(); cleaned > 0 {
+		d.log("Cleaned up %d stale processes", cleaned)
+	}
+
+	// Get ready issues from beads
+	readyIssues, err := d.getReadyIssues()
+	if err != nil {
+		d.log("Error getting ready issues: %v", err)
+		return
+	}
+
+	if len(readyIssues) == 0 {
+		d.log("No ready issues found")
+		return
+	}
+
+	d.log("Found %d ready issues", len(readyIssues))
+
+	// Process each ready issue
+	for _, issue := range readyIssues {
+		d.processIssue(issue)
+	}
+
+	d.log("Poll cycle completed (running: %d/%d)", d.runner.Count(), d.registry.Daemon.MaxAgents)
+}
+
+// BeadsIssue represents an issue from beads.
+type BeadsIssue struct {
+	ID       string   `json:"id"`
+	Title    string   `json:"title"`
+	Type     string   `json:"type"`
+	Priority string   `json:"priority"`
+	Labels   []string `json:"labels"`
+	Status   string   `json:"status"`
+}
+
+// getReadyIssues fetches ready issues from beads CLI.
+func (d *Daemon) getReadyIssues() ([]BeadsIssue, error) {
+	cmd := exec.Command("bd", "ready", "--json")
+	cmd.Dir = filepath.Dir(d.config.BeadsDir)
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("running bd ready: %w", err)
+	}
+
+	var issues []BeadsIssue
+	if err := json.Unmarshal(output, &issues); err != nil {
+		return nil, fmt.Errorf("parsing bd output: %w", err)
+	}
+
+	return issues, nil
+}
+
+// processIssue handles a single ready issue.
+func (d *Daemon) processIssue(issue BeadsIssue) {
+	// Check if already being worked on
+	for _, rc := range d.runner.List() {
+		if rc.IssueID == issue.ID {
+			d.log("Issue %s already being worked on by %s", issue.ID, rc.Agent)
+			return
+		}
+	}
+
+	// Match to an agent using rules
+	agent := d.registry.MatchAgent(issue.Labels, issue.Type, issue.Priority)
+	if agent == "" {
+		d.log("No agent matched for issue %s (labels: %v)", issue.ID, issue.Labels)
+		return
+	}
+
+	// Determine command based on issue type
+	commandName := "work_issue"
+	if strings.EqualFold(issue.Type, "epic") {
+		commandName = "plan_issue"
+	}
+
+	// Check if agent has this command
+	if _, ok := d.registry.GetCommand(agent, commandName); !ok {
+		d.log("Agent %s doesn't have command %s", agent, commandName)
+		return
+	}
+
+	// Check if we can run
+	canRun, reason := d.runner.CanRun(agent, commandName, issue.ID)
+	if !canRun {
+		d.log("Cannot run %s.%s for %s: %s", agent, commandName, issue.ID, reason)
+		return
+	}
+
+	// Run the command
+	d.log("Starting %s.%s for issue %s", agent, commandName, issue.ID)
+	
+	ctx := context.Background()
+	rc, err := d.runner.Run(ctx, agent, commandName, issue.ID)
+	if err != nil {
+		d.log("Error starting command: %v", err)
+		return
+	}
+
+	d.log("Started %s.%s for %s (pid: %d, hash: %s)", agent, commandName, issue.ID, rc.PID, rc.HashID)
 }
 
 // log writes a log message.

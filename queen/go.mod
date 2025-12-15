@@ -3,6 +3,7 @@ module github.com/tjboudreaux/queenbee/queen
 go 1.22
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/fatih/color v1.18.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/spf13/cobra v1.8.1
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/bmatcuk/doublestar/v4 v4.9.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
