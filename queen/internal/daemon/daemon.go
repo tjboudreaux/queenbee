@@ -386,6 +386,18 @@ func (d *Daemon) processIssue(issue BeadsIssue) {
 
 // determineCommand figures out which command to run based on issue type and workflows.
 func (d *Daemon) determineCommand(issueType, agent string) string {
+	// If agent is the default/triage agent, use the triage workflow
+	if agent == d.registry.DefaultAgent && agent != "" {
+		if wf, ok := d.registry.GetWorkflow("triage"); ok {
+			if wf.Work != nil && len(wf.Work.Steps) > 0 {
+				if wf.Work.Steps[0].Command != "" {
+					return wf.Work.Steps[0].Command
+				}
+			}
+		}
+		return "triage_issue" // Fallback for triage agent
+	}
+
 	// Check if there's a workflow defined for this issue type
 	if wf, ok := d.registry.GetWorkflow(issueType); ok {
 		// For now, use first step's command from work phase (or plan for epics)
