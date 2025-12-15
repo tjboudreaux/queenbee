@@ -16,9 +16,11 @@ type Workflow struct {
 	Work *WorkflowPhase `yaml:"work,omitempty"`
 }
 
-// WorkflowPhase contains steps to execute.
+// WorkflowPhase contains startup, steps, and shutdown phases.
 type WorkflowPhase struct {
-	Steps []Step `yaml:"steps"`
+	Startup  []Step `yaml:"startup,omitempty"`  // Run before main steps
+	Steps    []Step `yaml:"steps"`              // Main workflow steps
+	Shutdown []Step `yaml:"shutdown,omitempty"` // Run after main steps complete
 }
 
 // Step represents a single step in a workflow.
@@ -27,6 +29,7 @@ type Step struct {
 	Command  string `yaml:"command,omitempty"`  // Agent command name (e.g., "work_issue")
 	Exec     string `yaml:"exec,omitempty"`     // Shell command to execute
 	Parallel []Step `yaml:"parallel,omitempty"` // Steps to run in parallel
+	Cwd      string `yaml:"cwd,omitempty"`      // Working directory for this step
 }
 
 // WorkflowExecutor runs workflow steps.
@@ -70,10 +73,10 @@ func NewWorkflowExecutor(reg *Registry, runner *Runner, workDir, issueID, agent 
 	}
 }
 
-// ExecutePhase runs all steps in a workflow phase.
+// ExecutePhase runs all steps in a workflow phase (startup, steps, shutdown).
 func (e *WorkflowExecutor) ExecutePhase(ctx context.Context, phase *WorkflowPhase, phaseName string) (*WorkflowResult, error) {
-	if phase == nil || len(phase.Steps) == 0 {
-		return nil, fmt.Errorf("no steps in phase %s", phaseName)
+	if phase == nil {
+		return nil, fmt.Errorf("no phase %s defined", phaseName)
 	}
 
 	start := time.Now()
@@ -82,15 +85,40 @@ func (e *WorkflowExecutor) ExecutePhase(ctx context.Context, phase *WorkflowPhas
 		IssueID: e.issueID,
 		Agent:   e.agent,
 		Success: true,
-		Steps:   make([]StepResult, 0, len(phase.Steps)),
+		Steps:   make([]StepResult, 0),
 	}
 
+	// Run startup steps
+	if len(phase.Startup) > 0 {
+		for i, step := range phase.Startup {
+			stepResults, err := e.executeStep(ctx, step, i)
+			if err != nil {
+				result.Success = false
+				result.Steps = append(result.Steps, StepResult{
+					StepIndex: i,
+					StepType:  "startup:" + e.getStepType(step),
+					Success:   false,
+					Error:     err,
+				})
+				result.Duration = time.Since(start)
+				return result, nil // Don't run main steps if startup fails
+			}
+			result.Steps = append(result.Steps, stepResults...)
+			if !e.checkStepsSuccess(stepResults) {
+				result.Success = false
+				result.Duration = time.Since(start)
+				return result, nil
+			}
+		}
+	}
+
+	// Run main steps
 	for i, step := range phase.Steps {
-		stepResults, err := e.executeStep(ctx, step, i)
+		stepResults, err := e.executeStep(ctx, step, i+len(phase.Startup))
 		if err != nil {
 			result.Success = false
 			result.Steps = append(result.Steps, StepResult{
-				StepIndex: i,
+				StepIndex: i + len(phase.Startup),
 				StepType:  e.getStepType(step),
 				Success:   false,
 				Error:     err,
@@ -99,20 +127,42 @@ func (e *WorkflowExecutor) ExecutePhase(ctx context.Context, phase *WorkflowPhas
 		}
 		result.Steps = append(result.Steps, stepResults...)
 
-		// Check if any step failed
-		for _, sr := range stepResults {
-			if !sr.Success {
-				result.Success = false
-				break
-			}
-		}
-		if !result.Success {
+		if !e.checkStepsSuccess(stepResults) {
+			result.Success = false
 			break
+		}
+	}
+
+	// Run shutdown steps (always run, even if main steps failed)
+	if len(phase.Shutdown) > 0 {
+		for i, step := range phase.Shutdown {
+			stepResults, err := e.executeStep(ctx, step, i+len(phase.Startup)+len(phase.Steps))
+			if err != nil {
+				// Log but don't fail the whole workflow on shutdown errors
+				result.Steps = append(result.Steps, StepResult{
+					StepIndex: i + len(phase.Startup) + len(phase.Steps),
+					StepType:  "shutdown:" + e.getStepType(step),
+					Success:   false,
+					Error:     err,
+				})
+				continue
+			}
+			result.Steps = append(result.Steps, stepResults...)
 		}
 	}
 
 	result.Duration = time.Since(start)
 	return result, nil
+}
+
+// checkStepsSuccess returns true if all steps succeeded.
+func (e *WorkflowExecutor) checkStepsSuccess(results []StepResult) bool {
+	for _, sr := range results {
+		if !sr.Success {
+			return false
+		}
+	}
+	return true
 }
 
 // executeStep runs a single step (which may be parallel).
