@@ -17,11 +17,12 @@ const DefaultMaxConcurrent = 1
 
 // Registry represents the .queen.yaml configuration.
 type Registry struct {
-	Version int           `yaml:"version"`
-	Daemon  DaemonConfig  `yaml:"daemon"`
-	Agents  map[string]Agent `yaml:"agents"`
-	Rules   []Rule        `yaml:"rules"`
-	DefaultAgent string   `yaml:"default_agent"`
+	Version      int                 `yaml:"version"`
+	Daemon       DaemonConfig        `yaml:"daemon"`
+	Agents       map[string]Agent    `yaml:"agents"`
+	Rules        []Rule              `yaml:"rules"`
+	DefaultAgent string              `yaml:"default_agent"`
+	Workflows    map[string]Workflow `yaml:"workflows,omitempty"`
 }
 
 // DaemonConfig holds global daemon settings.

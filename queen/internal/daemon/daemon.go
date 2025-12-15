@@ -44,6 +44,7 @@ type Daemon struct {
 	stopChan chan struct{}
 	registry *registry.Registry
 	runner   *registry.Runner
+	queue    *registry.WorkQueue
 }
 
 // New creates a new daemon instance.
@@ -94,7 +95,8 @@ func (d *Daemon) Start(ctx context.Context) error {
 	} else {
 		d.registry = reg
 		d.runner = registry.NewRunner(reg, d.config.BeadsDir, workDir)
-		d.log("Registry loaded: %d agents, max_agents=%d", len(reg.Agents), reg.Daemon.MaxAgents)
+		d.queue = registry.NewWorkQueue(d.config.BeadsDir)
+		d.log("Registry loaded: %d agents, max_agents=%d, queued=%d", len(reg.Agents), reg.Daemon.MaxAgents, d.queue.Len())
 		
 		// Use registry poll interval if not overridden
 		if d.config.PollInterval == 0 {
@@ -237,6 +239,9 @@ func (d *Daemon) poll() {
 		d.log("Cleaned up %d stale processes", cleaned)
 	}
 
+	// Process queued work first (if we have capacity)
+	d.processQueue()
+
 	// Get ready issues from beads
 	readyIssues, err := d.getReadyIssues()
 	if err != nil {
@@ -246,25 +251,58 @@ func (d *Daemon) poll() {
 
 	if len(readyIssues) == 0 {
 		d.log("No ready issues found")
+	} else {
+		d.log("Found %d ready issues", len(readyIssues))
+
+		// Process each ready issue
+		for _, issue := range readyIssues {
+			d.processIssue(issue)
+		}
+	}
+
+	d.log("Poll cycle completed (running: %d/%d, queued: %d)", d.runner.Count(), d.registry.Daemon.MaxAgents, d.queue.Len())
+}
+
+// processQueue attempts to run queued work items.
+func (d *Daemon) processQueue() {
+	if d.queue == nil || d.queue.Len() == 0 {
 		return
 	}
 
-	d.log("Found %d ready issues", len(readyIssues))
+	// Try to run queued items while we have capacity
+	for d.runner.Count() < d.registry.Daemon.MaxAgents {
+		work, ok := d.queue.Peek()
+		if !ok {
+			break
+		}
 
-	// Process each ready issue
-	for _, issue := range readyIssues {
-		d.processIssue(issue)
+		// Check if we can run this work
+		canRun, _ := d.runner.CanRun(work.Agent, work.Command, work.IssueID)
+		if !canRun {
+			break
+		}
+
+		// Dequeue and run
+		d.queue.Dequeue()
+		d.log("Dequeued %s.%s for %s", work.Agent, work.Command, work.IssueID)
+
+		ctx := context.Background()
+		rc, err := d.runner.Run(ctx, work.Agent, work.Command, work.IssueID)
+		if err != nil {
+			d.log("Error running queued work: %v", err)
+			continue
+		}
+
+		d.log("Started queued %s.%s for %s (pid: %d)", work.Agent, work.Command, work.IssueID, rc.PID)
 	}
-
-	d.log("Poll cycle completed (running: %d/%d)", d.runner.Count(), d.registry.Daemon.MaxAgents)
 }
 
 // BeadsIssue represents an issue from beads.
 type BeadsIssue struct {
 	ID       string   `json:"id"`
 	Title    string   `json:"title"`
-	Type     string   `json:"type"`
-	Priority string   `json:"priority"`
+	Type     string   `json:"issue_type"`
+	Priority int      `json:"priority"`
 	Labels   []string `json:"labels"`
 	Status   string   `json:"status"`
 }
@@ -297,18 +335,23 @@ func (d *Daemon) processIssue(issue BeadsIssue) {
 		}
 	}
 
+	// Check if already queued
+	if d.queue != nil && d.queue.IsQueued("", "", issue.ID) {
+		return // Already queued, skip
+	}
+
+	// Convert numeric priority to string format (0 -> "P0", 1 -> "P1", etc.)
+	priority := fmt.Sprintf("P%d", issue.Priority)
+
 	// Match to an agent using rules
-	agent := d.registry.MatchAgent(issue.Labels, issue.Type, issue.Priority)
+	agent := d.registry.MatchAgent(issue.Labels, issue.Type, priority)
 	if agent == "" {
 		d.log("No agent matched for issue %s (labels: %v)", issue.ID, issue.Labels)
 		return
 	}
 
-	// Determine command based on issue type
-	commandName := "work_issue"
-	if strings.EqualFold(issue.Type, "epic") {
-		commandName = "plan_issue"
-	}
+	// Determine command based on issue type and workflow
+	commandName := d.determineCommand(issue.Type, agent)
 
 	// Check if agent has this command
 	if _, ok := d.registry.GetCommand(agent, commandName); !ok {
@@ -319,7 +362,12 @@ func (d *Daemon) processIssue(issue BeadsIssue) {
 	// Check if we can run
 	canRun, reason := d.runner.CanRun(agent, commandName, issue.ID)
 	if !canRun {
-		d.log("Cannot run %s.%s for %s: %s", agent, commandName, issue.ID, reason)
+		// Queue the work instead of dropping it
+		if d.queue != nil && strings.Contains(reason, "max_agents") {
+			d.queueWork(agent, commandName, issue)
+		} else {
+			d.log("Cannot run %s.%s for %s: %s", agent, commandName, issue.ID, reason)
+		}
 		return
 	}
 
@@ -334,6 +382,43 @@ func (d *Daemon) processIssue(issue BeadsIssue) {
 	}
 
 	d.log("Started %s.%s for %s (pid: %d, hash: %s)", agent, commandName, issue.ID, rc.PID, rc.HashID)
+}
+
+// determineCommand figures out which command to run based on issue type and workflows.
+func (d *Daemon) determineCommand(issueType, agent string) string {
+	// Check if there's a workflow defined for this issue type
+	if wf, ok := d.registry.GetWorkflow(issueType); ok {
+		// For now, use first step's command from work phase (or plan for epics)
+		if strings.EqualFold(issueType, "epic") && wf.Plan != nil && len(wf.Plan.Steps) > 0 {
+			if wf.Plan.Steps[0].Command != "" {
+				return wf.Plan.Steps[0].Command
+			}
+		} else if wf.Work != nil && len(wf.Work.Steps) > 0 {
+			if wf.Work.Steps[0].Command != "" {
+				return wf.Work.Steps[0].Command
+			}
+		}
+	}
+
+	// Default behavior
+	if strings.EqualFold(issueType, "epic") {
+		return "plan_issue"
+	}
+	return "work_issue"
+}
+
+// queueWork adds work to the queue.
+func (d *Daemon) queueWork(agent, command string, issue BeadsIssue) {
+	work := registry.QueuedWork{
+		Agent:     agent,
+		Command:   command,
+		IssueID:   issue.ID,
+		IssueType: issue.Type,
+		Priority:  issue.Priority,
+		Reason:    "max_agents reached",
+	}
+	d.queue.Enqueue(work)
+	d.log("Queued %s.%s for %s (priority: %d)", agent, command, issue.ID, issue.Priority)
 }
 
 // log writes a log message.
