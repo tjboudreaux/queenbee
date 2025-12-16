@@ -44,7 +44,7 @@ const (
 
 // watchMetrics holds current and previous values for delta tracking
 type watchMetrics struct {
-	// Issues
+	// Issues (matches bd status)
 	issuesTotal      int
 	issuesOpen       int
 	issuesInProgress int
@@ -52,17 +52,18 @@ type watchMetrics struct {
 	issuesClosed     int
 	issuesReady      int
 
-	// Git Activity (24h)
-	gitCommits       int
-	gitChanges       int
-	issuesCreated24h int
-	issuesClosed24h  int
-	issuesUpdated24h int
+	// Git Activity (24h) - matches bd status
+	gitCommits        int
+	gitChanges        int
+	issuesCreated24h  int
+	issuesClosed24h   int
+	issuesReopened24h int
+	issuesUpdated24h  int
 
 	// Agents
 	agentsRunning int
 	agentsMax     int
-	agentsErrored int
+	agentsIdle    int
 
 	// Queue
 	queuePending int
@@ -258,6 +259,12 @@ func collectGitActivity(m *watchMetrics, workDir string) {
 					m.issuesClosed24h++
 				}
 			}
+			// Check reopened_at
+			if reopened, ok := issue["reopened_at"].(string); ok && reopened != "" {
+				if t, err := time.Parse(time.RFC3339, reopened); err == nil && t.After(cutoff) {
+					m.issuesReopened24h++
+				}
+			}
 			// Check updated_at
 			if updated, ok := issue["updated_at"].(string); ok {
 				if t, err := time.Parse(time.RFC3339, updated); err == nil && t.After(cutoff) {
@@ -295,6 +302,12 @@ func collectAgentStats(m *watchMetrics, beadsDir, workDir string) {
 				m.runningAgents = append(m.runningAgents, info)
 			}
 		}
+	}
+
+	// Calculate idle agents
+	m.agentsIdle = m.agentsMax - m.agentsRunning
+	if m.agentsIdle < 0 {
+		m.agentsIdle = 0
 	}
 }
 
@@ -370,95 +383,86 @@ func renderDashboard(current, prev *watchMetrics, beadsDir string) {
 	d := daemon.New(daemon.Config{BeadsDir: beadsDir})
 	status := d.GetStatus()
 
-	w := 65 // box inner width
+	// Powerline-style separators
+	const sep = " │ "
 
-	// Header
-	fmt.Println(box("top", w))
+	// Header bar
+	timestamp := time.Now().Format("15:04:05")
 	if status.Running {
-		printLine(w, "  👑 %sQUEEN DAEMON STATUS%s                    ⏱️  Uptime: %s%s%s", colorBold, colorReset, colorCyan, status.Uptime, colorReset)
+		fmt.Printf("%s👑 QUEEN%s %s%s%s%s ⏱ %s%s\n",
+			colorBold+colorMagenta, colorReset,
+			colorGreen, "●", colorReset, sep,
+			colorCyan, status.Uptime+colorReset)
 	} else {
-		printLine(w, "  👑 %sQUEEN DAEMON STATUS%s                    %s⚠️  NOT RUNNING%s", colorBold, colorReset, colorYellow, colorReset)
+		fmt.Printf("%s👑 QUEEN%s %s%s STOPPED%s%s%s\n",
+			colorBold+colorMagenta, colorReset,
+			colorYellow, "○", colorReset, sep, timestamp)
 	}
-	fmt.Printf("│  %s  │\n", strings.Repeat("━", w-4))
-	printLine(w, "")
+	fmt.Println(colorGray + strings.Repeat("─", 72) + colorReset)
 
-	// Issues section - streamlined single-line summary + ready count
-	printLine(w, "  📋 %sISSUES%s  %s%d%s total │ %s%d%s open │ %s%d%s progress │ %s%d%s blocked │ %s%d%s closed",
-		colorBold, colorReset,
-		colorWhite, current.issuesTotal, colorReset,
-		colorGreen, current.issuesOpen, colorReset,
-		colorBlue, current.issuesInProgress, colorReset,
-		colorRed, current.issuesBlocked, colorReset,
-		colorGray, current.issuesClosed, colorReset)
-	printLine(w, "     └─ 🟢 Ready to work: %s%d%s %s", colorGreen, current.issuesReady, colorReset,
+	// ISSUES - compact powerline row
+	fmt.Printf("%s📋 ISSUES%s %s%d%s%s", colorBold, colorReset, colorWhite, current.issuesTotal, colorReset, sep)
+	fmt.Printf("%s%d%s open%s", colorGreen, current.issuesOpen, colorReset, sep)
+	fmt.Printf("%s%d%s prog%s", colorBlue, current.issuesInProgress, colorReset, sep)
+	fmt.Printf("%s%d%s block%s", colorRed, current.issuesBlocked, colorReset, sep)
+	fmt.Printf("%s%d%s closed%s", colorGray, current.issuesClosed, colorReset, sep)
+	fmt.Printf("▶ %s%d%s ready %s\n", colorGreen+colorBold, current.issuesReady, colorReset,
 		getDelta(current.issuesReady, prev, func(p *watchMetrics) int { return p.issuesReady }))
-	printLine(w, "")
 
-	// Activity section (24h)
-	printLine(w, "  📈 %sACTIVITY%s (24h)  %s%d%s commits │ %s%d%s changes │ +%s%d%s -%s%d%s ~%s%d%s issues",
-		colorBold, colorReset,
-		colorCyan, current.gitCommits, colorReset,
-		colorYellow, current.gitChanges, colorReset,
+	// ACTIVITY (24h) - compact powerline row
+	fmt.Printf("%s📈 24H%s    %s%d%s commits%s", colorBold, colorReset, colorCyan, current.gitCommits, colorReset, sep)
+	fmt.Printf("%s%d%s Δlines%s", colorYellow, current.gitChanges, colorReset, sep)
+	fmt.Printf("+%s%d%s -%s%d%s ↺%s%d%s ~%s%d%s issues\n",
 		colorGreen, current.issuesCreated24h, colorReset,
 		colorRed, current.issuesClosed24h, colorReset,
+		colorMagenta, current.issuesReopened24h, colorReset,
 		colorBlue, current.issuesUpdated24h, colorReset)
-	printLine(w, "")
 
-	// Agents section
-	printLine(w, "  🤖 %sAGENTS%s", colorBold, colorReset)
-	printMetricStr(w, "├─ 🟢 Running:", fmt.Sprintf("%d/%d", current.agentsRunning, current.agentsMax), "")
-
-	// Show running agents
-	for i, agent := range current.runningAgents {
-		prefix := "│   ├─"
-		if i == len(current.runningAgents)-1 && current.agentsMax-current.agentsRunning == 0 {
-			prefix = "│   └─"
+	// AGENTS - compact powerline row
+	fmt.Printf("%s🤖 AGENTS%s %s%d%s/%d%s", colorBold, colorReset, colorGreen, current.agentsRunning, colorReset, current.agentsMax, sep)
+	fmt.Printf("%s%d%s idle%s", colorYellow, current.agentsIdle, colorReset, sep)
+	// Show running agents inline
+	if len(current.runningAgents) > 0 {
+		agents := make([]string, 0, len(current.runningAgents))
+		for _, a := range current.runningAgents {
+			agents = append(agents, fmt.Sprintf("%s%s%s→%s", colorCyan, a.agent, colorReset, a.issueID))
 		}
-		printLine(w, "  %s %s%-14s%s → %s (%s)", prefix, colorCyan, agent.agent, colorReset, agent.issueID, agent.title)
+		fmt.Printf("%s\n", strings.Join(agents, " "))
+	} else {
+		fmt.Printf("%s(none active)%s\n", colorGray, colorReset)
 	}
 
-	idle := current.agentsMax - current.agentsRunning
-	if idle < 0 {
-		idle = 0
-	}
-	printMetric(w, "├─ 🟡 Idle:", idle, "")
-	printMetric(w, "└─ 🔴 Errored:", current.agentsErrored, getDelta(current.agentsErrored, prev, func(p *watchMetrics) int { return p.agentsErrored }))
-	printLine(w, "")
-
-	// Queue section
-	printLine(w, "  📦 %sQUEUE%s", colorBold, colorReset)
-	printMetric(w, "├─ Pending:", current.queuePending, getDelta(current.queuePending, prev, func(p *watchMetrics) int { return p.queuePending }))
-
-	// Priority breakdown
-	printLine(w, "  │   ├─ P0: %s%d%s  ├─ P1: %s%d%s  ├─ P2: %s%d%s  ├─ P3: %s%d%s",
+	// QUEUE - compact powerline row
+	fmt.Printf("%s📦 QUEUE%s  %s%d%s pending%s", colorBold, colorReset, colorWhite, current.queuePending, colorReset, sep)
+	fmt.Printf("P0:%s%d%s P1:%s%d%s P2:%s%d%s P3:%s%d%s%s",
 		colorRed, current.queueP0, colorReset,
 		colorYellow, current.queueP1, colorReset,
 		colorBlue, current.queueP2, colorReset,
-		colorGray, current.queueP3, colorReset)
-
+		colorGray, current.queueP3, colorReset, sep)
 	if current.queueNext != "" {
-		printLine(w, "  └─ Next: %s%s%s", colorCyan, current.queueNext, colorReset)
+		fmt.Printf("▶ %s%s%s\n", colorCyan, truncate(current.queueNext, 25), colorReset)
 	} else {
-		printLine(w, "  └─ Next: %s(empty)%s", colorGray, colorReset)
+		fmt.Printf("%s(empty)%s\n", colorGray, colorReset)
 	}
-	printLine(w, "")
 
-	// Messages section
-	printLine(w, "  💬 %sMESSAGES%s (last 5m)", colorBold, colorReset)
-	printMetric(w, "├─ 📨 Received:", current.msgsReceived, getDelta(current.msgsReceived, prev, func(p *watchMetrics) int { return p.msgsReceived }))
-	printMetric(w, "├─ 📤 Sent:", current.msgsSent, getDelta(current.msgsSent, prev, func(p *watchMetrics) int { return p.msgsSent }))
-	printMetric(w, "└─ 🚨 Urgent:", current.msgsUrgent, getDelta(current.msgsUrgent, prev, func(p *watchMetrics) int { return p.msgsUrgent }))
-	printLine(w, "")
+	// MESSAGES - compact powerline row
+	fmt.Printf("%s💬 MSGS%s   ↓%s%d%s ↑%s%d%s%s",
+		colorBold, colorReset,
+		colorGreen, current.msgsReceived, colorReset,
+		colorBlue, current.msgsSent, colorReset, sep)
+	if current.msgsUrgent > 0 {
+		fmt.Printf("🚨 %s%d%s urgent\n", colorRed+colorBold, current.msgsUrgent, colorReset)
+	} else {
+		fmt.Printf("%s0 urgent%s\n", colorGray, colorReset)
+	}
 
 	// Footer
-	fmt.Printf("│  %s  │\n", strings.Repeat("━", w-4))
-	timestamp := time.Now().Format("15:04:05")
-	printLine(w, "  Last refresh: %s%s%s   Press %sCtrl+C%s to quit   Refresh: %s%s%s",
-		colorCyan, timestamp, colorReset,
-		colorYellow, colorReset,
-		colorGreen, watchInterval.String(), colorReset)
-	fmt.Println(box("bottom", w))
-	fmt.Print(clearToEnd) // Clear any leftover content from previous renders
+	fmt.Println(colorGray + strings.Repeat("─", 72) + colorReset)
+	fmt.Printf("%s%s%s │ refresh: %s%s%s │ %sCtrl+C%s quit\n",
+		colorGray, timestamp, colorReset,
+		colorCyan, watchInterval.String(), colorReset,
+		colorYellow, colorReset)
+	fmt.Print(clearToEnd)
 }
 
 func printLine(width int, format string, args ...interface{}) {
