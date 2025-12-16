@@ -135,7 +135,7 @@ export function createAssignmentsView(mount_element, store, callbacks = {}) {
   function template() {
     const state = store.getState();
     const assignments = state.queen_assignments || [];
-    const droids = state.queen_droids || [];
+    const _droids = state.queen_droids || []; // eslint-disable-line no-unused-vars
 
     // Get unique statuses
     const statuses = [...new Set(assignments.map((/** @type {Assignment} */ a) => a.status))];

@@ -1,0 +1,81 @@
+# QueenBee Git Hooks Configuration
+# Install: brew install lefthook && lefthook install
+# Docs: https://github.com/evilmartians/lefthook
+
+assert_lefthook_installed: true
+
+pre-commit:
+  parallel: true
+  commands:
+    # Queen (Go) checks - only run if Go files changed
+    queen-fmt:
+      root: queen/
+      glob: "*.go"
+      run: gofmt -l . | grep -q . && { echo "Run 'go fmt ./...' to fix formatting"; exit 1; } || exit 0
+
+    queen-lint:
+      root: queen/
+      glob: "*.go"
+      run: golangci-lint run
+
+    queen-test:
+      root: queen/
+      glob: "*.go"
+      run: go test -short ./...
+
+    # QueenUI (Node) checks - only run if JS/TS files changed
+    ui-lint:
+      root: queenui/
+      glob: "*.{js,ts}"
+      run: npm run lint
+
+    ui-tsc:
+      root: queenui/
+      glob: "*.{js,ts}"
+      run: npm run tsc
+
+    ui-test:
+      root: queenui/
+      glob: "*.{js,ts}"
+      run: npm test
+
+    ui-prettier:
+      root: queenui/
+      glob: "*.{js,ts,json,css,html}"
+      run: npm run prettier:check
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        MSG=$(cat {1})
+        # Allow merge commits
+        if echo "$MSG" | grep -qE "^Merge "; then
+          exit 0
+        fi
+        # Validate conventional commit format
+        if ! echo "$MSG" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\(.+\))?!?: .+"; then
+          echo ""
+          echo "❌ Commit message must follow Conventional Commits format"
+          echo ""
+          echo "Format: <type>(<scope>): <description>"
+          echo ""
+          echo "Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert"
+          echo ""
+          echo "Examples:"
+          echo "  feat(queen): add watch command"
+          echo "  fix(queenui): handle empty inbox"
+          echo "  docs: update installation instructions"
+          echo "  chore: update dependencies"
+          echo ""
+          exit 1
+        fi
+
+pre-push:
+  parallel: true
+  commands:
+    # Full test suite with race detection before push
+    queen-test-full:
+      root: queen/
+      glob: "*.go"
+      run: go test -race ./...

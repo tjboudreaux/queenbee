@@ -6,11 +6,13 @@ on:
     paths:
       - 'queen/**'
       - '.github/workflows/ci.yml'
+      - '.lefthook.yml'
   pull_request:
     branches: [main]
     paths:
       - 'queen/**'
       - '.github/workflows/ci.yml'
+      - '.lefthook.yml'
 
 jobs:
   test:

@@ -2,6 +2,10 @@
 
 # QueenBee
 
+[![CI - Queen](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml/badge.svg)](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml)
+[![CI - QueenUI](https://github.com/tjboudreaux/queenbee/actions/workflows/ci-ui.yml/badge.svg)](https://github.com/tjboudreaux/queenbee/actions/workflows/ci-ui.yml)
+[![Release](https://img.shields.io/github/v/release/tjboudreaux/queenbee?include_prereleases)](https://github.com/tjboudreaux/queenbee/releases)
+
 **Unified AI Agent Orchestration for Factory Agents**
 
 QueenBee is a CLI-first orchestration layer that extends [Beads](https://github.com/jeffrydegrande/beads) with multi-agent coordination capabilities. It replaces MCP-based Agent Mail with git-backed messaging, automated task assignment via the Queen agent, and a unified TUI for observing all agent activity.
@@ -70,6 +74,46 @@ QueenBee provides:
 │   Shared across all git worktrees via single .beads/ directory              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+## Installation
+
+### Quick Install
+
+**macOS/Linux** (recommended):
+```bash
+curl -sSL https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/install.sh | bash
+```
+
+**Homebrew** (macOS/Linux):
+```bash
+brew tap tjboudreaux/tap
+brew install queen
+```
+
+**Go**:
+```bash
+go install github.com/tjboudreaux/queenbee/queen/cmd/queen@latest
+```
+
+### Verify Installation
+
+```bash
+queen version
+```
+
+### QueenUI (Optional Dashboard)
+
+For the browser-based coordination dashboard:
+
+```bash
+cd queenui
+npm install
+npm start
+```
+
+Then open http://localhost:3000
+
+See [queen/INSTALL.md](queen/INSTALL.md) for detailed installation options and platform-specific instructions.
 
 ## Core Concepts
 

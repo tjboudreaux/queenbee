@@ -46,6 +46,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Get short name from path.
+   *
    * @param {string} path
    * @returns {string}
    */
@@ -56,6 +57,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Get branch display name.
+   *
    * @param {string} branch
    * @returns {string}
    */
@@ -66,6 +68,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Format commit as short hash.
+   *
    * @param {string} commit
    * @returns {string}
    */
@@ -75,6 +78,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Handle worktree tab click.
+   *
    * @param {string} path
    */
   function onSelectWorktree(path) {
@@ -87,6 +91,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Handle switch button click.
+   *
    * @param {string} path
    */
   function onSwitchWorktree(path) {
@@ -97,6 +102,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Worktree tab component.
+   *
    * @param {Worktree} worktree
    * @returns {import('lit-html').TemplateResult}
    */
@@ -120,6 +126,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Worktree detail card component.
+   *
    * @param {Worktree | null} worktree
    * @returns {import('lit-html').TemplateResult}
    */
@@ -200,6 +207,7 @@ export function createWorktreesView(mount_element, store, callbacks = {}) {
 
   /**
    * Main template.
+   *
    * @returns {import('lit-html').TemplateResult}
    */
   function template() {

@@ -195,7 +195,7 @@ export function createMessagesView(mount_element, store, callbacks = {}) {
     }
 
     // Sort threads by most recent message
-    const sorted_threads = Array.from(threads.entries()).sort((a, b) => {
+    const _sorted_threads = Array.from(threads.entries()).sort((a, b) => { // eslint-disable-line no-unused-vars
       const a_latest = a[1][a[1].length - 1];
       const b_latest = b[1][b[1].length - 1];
       return new Date(b_latest.created_at).getTime() - new Date(a_latest.created_at).getTime();

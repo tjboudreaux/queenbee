@@ -151,7 +151,7 @@ export function createDroidsView(mount_element, store, callbacks = {}) {
     const droids = state.queen_droids || [];
 
     // Get unique statuses and locations
-    const statuses = [...new Set(droids.map((/** @type {Droid} */ d) => d.status))];
+    const _statuses = [...new Set(droids.map((/** @type {Droid} */ d) => d.status))]; // eslint-disable-line no-unused-vars
     const locations = [...new Set(droids.map((/** @type {Droid} */ d) => d.location).filter(Boolean))];
 
     // Apply filters
