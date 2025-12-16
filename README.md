@@ -1,3 +1,5 @@
+![QueenBee](queenbee.jpeg)
+
 # QueenBee
 
 **Unified AI Agent Orchestration for Factory Droids**

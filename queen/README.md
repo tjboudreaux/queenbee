@@ -1,3 +1,5 @@
+![QueenBee](../queenbee.jpeg)
+
 # Queen CLI
 
 The Queen CLI provides orchestration and coordination capabilities for multi-agent development workflows.
