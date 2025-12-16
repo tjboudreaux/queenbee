@@ -418,19 +418,11 @@ func renderDashboard(current, prev *watchMetrics, beadsDir string) {
 		colorMagenta, current.issuesReopened24h, colorReset,
 		colorBlue, current.issuesUpdated24h, colorReset)
 
-	// AGENTS - compact powerline row
-	fmt.Printf("%s🤖 AGENTS%s %s%d%s/%d%s", colorBold, colorReset, colorGreen, current.agentsRunning, colorReset, current.agentsMax, sep)
-	fmt.Printf("%s%d%s idle%s", colorYellow, current.agentsIdle, colorReset, sep)
-	// Show running agents inline
-	if len(current.runningAgents) > 0 {
-		agents := make([]string, 0, len(current.runningAgents))
-		for _, a := range current.runningAgents {
-			agents = append(agents, fmt.Sprintf("%s%s%s→%s", colorCyan, a.agent, colorReset, a.issueID))
-		}
-		fmt.Printf("%s\n", strings.Join(agents, " "))
-	} else {
-		fmt.Printf("%s(none active)%s\n", colorGray, colorReset)
-	}
+	// AGENTS - compact powerline row (summary only)
+	fmt.Printf("%s🤖 AGENTS%s %s%d%s/%d running%s%s%d%s idle\n",
+		colorBold, colorReset,
+		colorGreen, current.agentsRunning, colorReset, current.agentsMax, sep,
+		colorYellow, current.agentsIdle, colorReset)
 
 	// QUEUE - compact powerline row
 	fmt.Printf("%s📦 QUEUE%s  %s%d%s pending%s", colorBold, colorReset, colorWhite, current.queuePending, colorReset, sep)
@@ -456,13 +448,44 @@ func renderDashboard(current, prev *watchMetrics, beadsDir string) {
 		fmt.Printf("%s0 urgent%s\n", colorGray, colorReset)
 	}
 
-	// Footer
+	// Footer line
 	fmt.Println(colorGray + strings.Repeat("─", 72) + colorReset)
 	fmt.Printf("%s%s%s │ refresh: %s%s%s │ %sCtrl+C%s quit\n",
 		colorGray, timestamp, colorReset,
 		colorCyan, watchInterval.String(), colorReset,
 		colorYellow, colorReset)
+
+	// AGENTS detail section (below powerline)
+	fmt.Println()
+	fmt.Printf("%s🤖 ACTIVE AGENTS%s\n", colorBold, colorReset)
+	if len(current.runningAgents) > 0 {
+		for _, a := range current.runningAgents {
+			fmt.Printf("   %s●%s %s%-18s%s %s→%s %s%-8s%s %s%s%s\n",
+				colorGreen, colorReset,
+				colorCyan, a.agent, colorReset,
+				colorGray, colorReset,
+				colorWhite, a.issueID, colorReset,
+				colorGray, a.title, colorReset)
+		}
+	} else {
+		fmt.Printf("   %s(no agents currently working)%s\n", colorGray, colorReset)
+	}
+
+	// Show idle slots
+	if current.agentsIdle > 0 {
+		fmt.Printf("   %s○%s %s%d idle slot%s available%s\n",
+			colorYellow, colorReset,
+			colorYellow, current.agentsIdle, pluralize(current.agentsIdle), colorReset)
+	}
+
 	fmt.Print(clearToEnd)
+}
+
+func pluralize(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 func printLine(width int, format string, args ...interface{}) {
