@@ -97,21 +97,22 @@ release:
     **Manual Install:**
     Download the appropriate binary for your platform below, extract it, and place it in your PATH.
 
-brews:
-  - name: queen
-    repository:
-      owner: tjboudreaux
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    folder: Formula
-    homepage: https://github.com/tjboudreaux/queenbee
-    description: Multi-agent coordination CLI for AI-assisted development
-    license: MIT
-    skip_upload: auto
-    test: |
-      system "#{bin}/queen", "version"
-    install: |
-      bin.install "queen"
+# Homebrew tap - disabled until homebrew-tap repo is set up
+# brews:
+#   - name: queen
+#     repository:
+#       owner: tjboudreaux
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     directory: Formula
+#     homepage: https://github.com/tjboudreaux/queenbee
+#     description: Multi-agent coordination CLI for AI-assisted development
+#     license: MIT
+#     skip_upload: auto
+#     test: |
+#       system "#{bin}/queen", "version"
+#     install: |
+#       bin.install "queen"
 
 nfpms:
   - id: packages
