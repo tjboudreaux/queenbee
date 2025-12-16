@@ -45,10 +45,19 @@ const (
 // watchMetrics holds current and previous values for delta tracking
 type watchMetrics struct {
 	// Issues
-	issuesReady      int
+	issuesTotal      int
+	issuesOpen       int
 	issuesInProgress int
 	issuesBlocked    int
-	issuesTotal      int
+	issuesClosed     int
+	issuesReady      int
+
+	// Git Activity (24h)
+	gitCommits       int
+	gitChanges       int
+	issuesCreated24h int
+	issuesClosed24h  int
+	issuesUpdated24h int
 
 	// Agents
 	agentsRunning int
@@ -146,6 +155,9 @@ func collectMetrics(beadsDir string) *watchMetrics {
 	// Collect issue stats from bd
 	collectIssueStats(m, workDir)
 
+	// Collect git activity stats
+	collectGitActivity(m, workDir)
+
 	// Collect agent stats from runner state
 	collectAgentStats(m, beadsDir, workDir)
 
@@ -169,8 +181,8 @@ func collectIssueStats(m *watchMetrics, workDir string) {
 		}
 	}
 
-	// Get all issues for counts
-	listCmd := exec.Command("bd", "list", "--json")
+	// Get all issues for counts (including closed)
+	listCmd := exec.Command("bd", "list", "--all", "--json")
 	listCmd.Dir = workDir
 	if out, err := listCmd.Output(); err == nil {
 		var issues []map[string]interface{}
@@ -179,11 +191,77 @@ func collectIssueStats(m *watchMetrics, workDir string) {
 			for _, issue := range issues {
 				if status, ok := issue["status"].(string); ok {
 					switch strings.ToLower(status) {
+					case "open":
+						m.issuesOpen++
 					case "in_progress", "in-progress", "active":
 						m.issuesInProgress++
 					case "blocked":
 						m.issuesBlocked++
+					case "closed", "done", "resolved":
+						m.issuesClosed++
 					}
+				}
+			}
+		}
+	}
+}
+
+func collectGitActivity(m *watchMetrics, workDir string) {
+	// Get commits in last 24 hours
+	since := time.Now().Add(-24 * time.Hour).Format("2006-01-02T15:04:05")
+
+	// Count commits
+	commitCmd := exec.Command("git", "rev-list", "--count", "--since="+since, "HEAD")
+	commitCmd.Dir = workDir
+	if out, err := commitCmd.Output(); err == nil {
+		fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &m.gitCommits)
+	}
+
+	// Count changed files (insertions + deletions)
+	statCmd := exec.Command("git", "diff", "--shortstat", "--since="+since, "HEAD~"+fmt.Sprintf("%d", max(m.gitCommits, 1)))
+	statCmd.Dir = workDir
+	if out, err := statCmd.Output(); err == nil {
+		// Parse "X files changed, Y insertions(+), Z deletions(-)"
+		parts := strings.Split(string(out), ",")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			var n int
+			if strings.Contains(part, "insertion") || strings.Contains(part, "deletion") {
+				fmt.Sscanf(part, "%d", &n)
+				m.gitChanges += n
+			}
+		}
+	}
+
+	// Get issue activity from bd status output (parse JSONL file directly)
+	issuesFile := filepath.Join(workDir, ".beads", "issues.jsonl")
+	if data, err := os.ReadFile(issuesFile); err == nil {
+		cutoff := time.Now().Add(-24 * time.Hour)
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			if line == "" {
+				continue
+			}
+			var issue map[string]interface{}
+			if json.Unmarshal([]byte(line), &issue) != nil {
+				continue
+			}
+			// Check created_at
+			if created, ok := issue["created_at"].(string); ok {
+				if t, err := time.Parse(time.RFC3339, created); err == nil && t.After(cutoff) {
+					m.issuesCreated24h++
+				}
+			}
+			// Check closed_at
+			if closed, ok := issue["closed_at"].(string); ok && closed != "" {
+				if t, err := time.Parse(time.RFC3339, closed); err == nil && t.After(cutoff) {
+					m.issuesClosed24h++
+				}
+			}
+			// Check updated_at
+			if updated, ok := issue["updated_at"].(string); ok {
+				if t, err := time.Parse(time.RFC3339, updated); err == nil && t.After(cutoff) {
+					m.issuesUpdated24h++
 				}
 			}
 		}
@@ -304,12 +382,26 @@ func renderDashboard(current, prev *watchMetrics, beadsDir string) {
 	fmt.Printf("│  %s  │\n", strings.Repeat("━", w-4))
 	printLine(w, "")
 
-	// Issues section
-	printLine(w, "  📋 %sISSUES%s", colorBold, colorReset)
-	printMetric(w, "├─ 🟢 Ready:", current.issuesReady, getDelta(current.issuesReady, prev, func(p *watchMetrics) int { return p.issuesReady }))
-	printMetric(w, "├─ 🔵 In Progress:", current.issuesInProgress, getDelta(current.issuesInProgress, prev, func(p *watchMetrics) int { return p.issuesInProgress }))
-	printMetric(w, "├─ 🔴 Blocked:", current.issuesBlocked, getDelta(current.issuesBlocked, prev, func(p *watchMetrics) int { return p.issuesBlocked }))
-	printMetric(w, "└─ ⚪ Total:", current.issuesTotal, getDelta(current.issuesTotal, prev, func(p *watchMetrics) int { return p.issuesTotal }))
+	// Issues section - streamlined single-line summary + ready count
+	printLine(w, "  📋 %sISSUES%s  %s%d%s total │ %s%d%s open │ %s%d%s progress │ %s%d%s blocked │ %s%d%s closed",
+		colorBold, colorReset,
+		colorWhite, current.issuesTotal, colorReset,
+		colorGreen, current.issuesOpen, colorReset,
+		colorBlue, current.issuesInProgress, colorReset,
+		colorRed, current.issuesBlocked, colorReset,
+		colorGray, current.issuesClosed, colorReset)
+	printLine(w, "     └─ 🟢 Ready to work: %s%d%s %s", colorGreen, current.issuesReady, colorReset,
+		getDelta(current.issuesReady, prev, func(p *watchMetrics) int { return p.issuesReady }))
+	printLine(w, "")
+
+	// Activity section (24h)
+	printLine(w, "  📈 %sACTIVITY%s (24h)  %s%d%s commits │ %s%d%s changes │ +%s%d%s -%s%d%s ~%s%d%s issues",
+		colorBold, colorReset,
+		colorCyan, current.gitCommits, colorReset,
+		colorYellow, current.gitChanges, colorReset,
+		colorGreen, current.issuesCreated24h, colorReset,
+		colorRed, current.issuesClosed24h, colorReset,
+		colorBlue, current.issuesUpdated24h, colorReset)
 	printLine(w, "")
 
 	// Agents section
