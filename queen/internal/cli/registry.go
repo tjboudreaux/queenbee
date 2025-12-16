@@ -54,8 +54,101 @@ Example .queen.yaml:
 	cmd.AddCommand(newRegistryShowCmd())
 	cmd.AddCommand(newRegistryValidateCmd())
 	cmd.AddCommand(newRegistryMatchCmd())
+	cmd.AddCommand(newRegistryListCmd())
 
 	return cmd
+}
+
+func newRegistryListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List agents as a directory for discovery",
+		Long: `Show a compact directory of available agents and their skills.
+
+Use this to discover which agent to contact for help with specific tasks.
+
+Example output:
+  📋 Agent Directory
+  ──────────────────────────────────────────────────────
+  ui-engineer        react, typescript, css, tailwind
+  backend-engineer   go, postgres, api, grpc
+  qa-engineer        testing, automation, playwright
+  ──────────────────────────────────────────────────────
+  
+  To message an agent:  queen msg send <agent> "your message"
+  To broadcast to all:  queen msg send @all "your message"`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			beadsDir, _ := cmd.Flags().GetString("beads-dir")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
+
+			workDir := filepath.Dir(beadsDir)
+			if beadsDir == "" {
+				var err error
+				workDir, err = os.Getwd()
+				if err != nil {
+					return err
+				}
+			}
+
+			reg, err := registry.Load(workDir)
+			if err != nil {
+				return fmt.Errorf("loading registry: %w", err)
+			}
+
+			if jsonOutput {
+				type agentEntry struct {
+					Name   string   `json:"name"`
+					Skills []string `json:"skills"`
+				}
+				var entries []agentEntry
+				for name, agent := range reg.Agents {
+					entries = append(entries, agentEntry{
+						Name:   name,
+						Skills: agent.Skills,
+					})
+				}
+				data, _ := json.MarshalIndent(entries, "", "  ")
+				fmt.Println(string(data))
+				return nil
+			}
+
+			// Find max agent name length for alignment
+			maxNameLen := 0
+			for name := range reg.Agents {
+				if len(name) > maxNameLen {
+					maxNameLen = len(name)
+				}
+			}
+			if maxNameLen < 10 {
+				maxNameLen = 10
+			}
+
+			fmt.Println("📋 Agent Directory")
+			fmt.Println("──────────────────────────────────────────────────────")
+
+			for name, agent := range reg.Agents {
+				skills := ""
+				if len(agent.Skills) > 0 {
+					for i, s := range agent.Skills {
+						if i > 0 {
+							skills += ", "
+						}
+						skills += s
+					}
+				} else {
+					skills = "(no skills listed)"
+				}
+				fmt.Printf("  %-*s  %s\n", maxNameLen, name, skills)
+			}
+
+			fmt.Println("──────────────────────────────────────────────────────")
+			fmt.Println()
+			fmt.Println("To message an agent:  queen msg send <agent> \"message\"")
+			fmt.Println("To broadcast to all:  queen msg send @all \"message\"")
+
+			return nil
+		},
+	}
 }
 
 func newRegistryShowCmd() *cobra.Command {
