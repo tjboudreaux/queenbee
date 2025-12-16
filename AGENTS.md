@@ -2,6 +2,8 @@
 
 This document defines how AI agents coordinate work in QueenBee projects. All agents MUST follow this protocol.
 
+> **Terminology Note**: This document uses "droid" to refer to Factory's `.factory/droids/` agent definitions. The Queen CLI uses "agent" terminology internally (e.g., `--agent` flag, `Agent` field). Both terms refer to the same concept: an AI agent identity.
+
 ## Overview
 
 QueenBee uses a hierarchical coordination model:
