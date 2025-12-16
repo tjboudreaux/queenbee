@@ -46,7 +46,7 @@ func (s *Store) Reserve(droid, pattern string, opts ReserveOptions) (*Reservatio
 		CreatedAt: now,
 		ExpiresAt: now.Add(ttl),
 		Pattern:   pattern,
-		Droid:     droid,
+		Agent:     droid,
 		IssueID:   opts.IssueID,
 		Status:    StatusActive,
 		Exclusive: opts.Exclusive,
@@ -185,9 +185,15 @@ func (s *Store) GetActive(droid string) ([]Reservation, error) {
 		if now.After(r.ExpiresAt) {
 			continue
 		}
-		// Filter by droid if specified
-		if droid != "" && r.Droid != droid {
-			continue
+		// Filter by agent if specified
+		if droid != "" {
+			resAgent := r.Agent
+			if resAgent == "" {
+				resAgent = r.Droid // Backward compat
+			}
+			if resAgent != droid {
+				continue
+			}
 		}
 		result = append(result, *r)
 	}
@@ -243,8 +249,12 @@ func (s *Store) checkConflicts(pattern, droid string, exclusive bool) ([]Conflic
 
 	var conflicts []Conflict
 	for _, r := range active {
-		// Same droid doesn't conflict with itself
-		if r.Droid == droid {
+		// Same agent doesn't conflict with itself
+		resAgent := r.Agent
+		if resAgent == "" {
+			resAgent = r.Droid // Backward compat
+		}
+		if resAgent == droid {
 			continue
 		}
 		// Only exclusive reservations can conflict
@@ -255,7 +265,7 @@ func (s *Store) checkConflicts(pattern, droid string, exclusive bool) ([]Conflic
 		if PatternsOverlap(pattern, r.Pattern) {
 			conflicts = append(conflicts, Conflict{
 				Pattern:   r.Pattern,
-				Droid:     r.Droid,
+				Agent:     resAgent,
 				IssueID:   r.IssueID,
 				ExpiresAt: r.ExpiresAt,
 			})

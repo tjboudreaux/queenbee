@@ -13,9 +13,9 @@ import (
 )
 
 var assignCmd = &cobra.Command{
-	Use:   "assign <issue-id> <droid>",
-	Short: "Assign an issue to a droid",
-	Long:  "Assign an issue to a specific droid. Reassigns if already assigned.",
+	Use:   "assign <issue-id> <agent>",
+	Short: "Assign an issue to an agent",
+	Long:  "Assign an issue to a specific agent. Reassigns if already assigned.",
 	Args:  cobra.ExactArgs(2),
 	RunE:  runAssign,
 }
@@ -23,7 +23,7 @@ var assignCmd = &cobra.Command{
 var claimCmd = &cobra.Command{
 	Use:   "claim <issue-id>",
 	Short: "Claim an issue for yourself",
-	Long:  "Claim an issue, assigning it to your current droid identity.",
+	Long:  "Claim an issue, assigning it to your current agent identity.",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runClaim,
 }
@@ -39,7 +39,7 @@ var releaseCmd = &cobra.Command{
 var assignmentsCmd = &cobra.Command{
 	Use:   "assignments",
 	Short: "List assignments",
-	Long:  "List issue assignments for droids.",
+	Long:  "List issue assignments for agents.",
 	RunE:  runAssignments,
 }
 
@@ -47,7 +47,7 @@ var (
 	assignWorktree string
 	assignReason   string
 	assignStatus   string
-	assignDroid    string
+	assignAgent    string
 )
 
 func init() {
@@ -69,11 +69,11 @@ func init() {
 
 	// assignments flags
 	assignmentsCmd.Flags().StringVar(&assignStatus, "status", "", "Filter by status (active, completed, released, reassigned)")
-	assignmentsCmd.Flags().StringVar(&assignDroid, "droid", "", "Filter by droid")
+	assignmentsCmd.Flags().StringVar(&assignAgent, "agent", "", "Filter by agent")
 }
 
 func runAssign(cmd *cobra.Command, args []string) error {
-	issueID, droid := args[0], args[1]
+	issueID, agent := args[0], args[1]
 
 	beadsDir, err := beads.FindBeadsDir()
 	if err != nil {
@@ -85,7 +85,7 @@ func runAssign(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	assignedBy, err := config.GetCurrentDroid(cmd, cfg)
+	assignedBy, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func runAssign(cmd *cobra.Command, args []string) error {
 
 	store := assignments.NewStore(beadsDir)
 
-	assignment, err := store.Assign(issueID, droid, assignedBy, assignments.AssignOptions{
+	assignment, err := store.Assign(issueID, agent, assignedBy, assignments.AssignOptions{
 		Worktree: assignWorktree,
 		Reason:   assignReason,
 	})
@@ -110,10 +110,10 @@ func runAssign(cmd *cobra.Command, args []string) error {
 	}
 
 	green := color.New(color.FgGreen).SprintFunc()
-	if assignment.PreviousDroid != "" {
-		fmt.Printf("%s Reassigned %s: %s → %s\n", green("✓"), issueID, assignment.PreviousDroid, droid)
+	if assignment.PreviousAgent != "" {
+		fmt.Printf("%s Reassigned %s: %s → %s\n", green("✓"), issueID, assignment.PreviousAgent, agent)
 	} else {
-		fmt.Printf("%s Assigned %s to %s\n", green("✓"), issueID, droid)
+		fmt.Printf("%s Assigned %s to %s\n", green("✓"), issueID, agent)
 	}
 	return nil
 }
@@ -131,7 +131,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	droid, err := config.GetCurrentDroid(cmd, cfg)
+	agent, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func runClaim(cmd *cobra.Command, args []string) error {
 
 	store := assignments.NewStore(beadsDir)
 
-	assignment, err := store.Claim(issueID, droid, assignments.AssignOptions{
+	assignment, err := store.Claim(issueID, agent, assignments.AssignOptions{
 		Worktree: assignWorktree,
 		Reason:   assignReason,
 	})
@@ -202,9 +202,9 @@ func runAssignments(cmd *cobra.Command, args []string) error {
 
 	var result []assignments.Assignment
 
-	if assignDroid != "" {
-		// Filter by droid (only active)
-		result, err = store.GetActiveForDroid(assignDroid)
+	if assignAgent != "" {
+		// Filter by agent (only active)
+		result, err = store.GetActiveForAgent(assignAgent)
 	} else {
 		// Get all with optional status filter
 		result, err = store.GetAll(assignStatus)
@@ -249,7 +249,7 @@ func printAssignment(a assignments.Assignment) {
 		statusColor = red
 	}
 
-	fmt.Printf("  %s → %s %s\n", a.IssueID, a.Droid, statusColor("["+a.Status+"]"))
+	fmt.Printf("  %s → %s %s\n", a.IssueID, a.Agent, statusColor("["+a.Status+"]"))
 	fmt.Printf("    %s %s | %s %s\n", gray("ID:"), a.ID, gray("Assigned by:"), a.AssignedBy)
 	if a.Worktree != "" {
 		fmt.Printf("    %s %s\n", gray("Worktree:"), a.Worktree)

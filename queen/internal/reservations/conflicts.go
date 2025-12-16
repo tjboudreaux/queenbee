@@ -34,8 +34,16 @@ func (s *Store) DetectConflicts() ([]ConflictInfo, error) {
 		for j := i + 1; j < len(active); j++ {
 			a, b := active[i], active[j]
 
-			// Same droid doesn't conflict
-			if a.Droid == b.Droid {
+			// Same agent doesn't conflict
+			agentA := a.Agent
+			if agentA == "" {
+				agentA = a.Droid // Backward compat
+			}
+			agentB := b.Agent
+			if agentB == "" {
+				agentB = b.Droid // Backward compat
+			}
+			if agentA == agentB {
 				continue
 			}
 
@@ -58,18 +66,26 @@ func (s *Store) DetectConflicts() ([]ConflictInfo, error) {
 	return conflicts, nil
 }
 
+// getAgent returns the agent name from a reservation (with backward compat)
+func getAgent(r Reservation) string {
+	if r.Agent != "" {
+		return r.Agent
+	}
+	return r.Droid
+}
+
 // SuggestResolutions provides resolution options for a conflict.
 func SuggestResolutions(conflict ConflictInfo) []Resolution {
 	a, b := conflict.ReservationA, conflict.ReservationB
 
 	// Determine which reservation has priority
-	// Earlier reservation wins, or if same time, lexically smaller droid
+	// Earlier reservation wins, or if same time, lexically smaller agent
 	var winner, loser Reservation
 	if a.CreatedAt.Before(b.CreatedAt) {
 		winner, loser = a, b
 	} else if b.CreatedAt.Before(a.CreatedAt) {
 		winner, loser = b, a
-	} else if a.Droid < b.Droid {
+	} else if getAgent(a) < getAgent(b) {
 		winner, loser = a, b
 	} else {
 		winner, loser = b, a
@@ -77,21 +93,23 @@ func SuggestResolutions(conflict ConflictInfo) []Resolution {
 
 	timeUntilExpiry := time.Until(winner.ExpiresAt)
 	waitTime := formatWaitTime(timeUntilExpiry)
+	winnerAgent := getAgent(winner)
+	loserAgent := getAgent(loser)
 
 	resolutions := []Resolution{
 		{
 			Action:      "wait",
-			Description: "Wait for " + winner.Droid + "'s reservation to expire (" + waitTime + ")",
+			Description: "Wait for " + winnerAgent + "'s reservation to expire (" + waitTime + ")",
 			Priority:    1,
 		},
 		{
 			Action:      "coordinate",
-			Description: "Coordinate with " + winner.Droid + " to merge changes",
+			Description: "Coordinate with " + winnerAgent + " to merge changes",
 			Priority:    2,
 		},
 		{
 			Action:      "release",
-			Description: loser.Droid + " releases their reservation on " + loser.Pattern,
+			Description: loserAgent + " releases their reservation on " + loser.Pattern,
 			Priority:    3,
 		},
 	}
@@ -130,8 +148,8 @@ func (s *Store) ResolveConflict(conflict ConflictInfo, resolution Resolution) er
 	}
 }
 
-// GetConflictsForDroid returns conflicts involving a specific droid.
-func (s *Store) GetConflictsForDroid(droid string) ([]ConflictInfo, error) {
+// GetConflictsForAgent returns conflicts involving a specific agent.
+func (s *Store) GetConflictsForAgent(agent string) ([]ConflictInfo, error) {
 	all, err := s.DetectConflicts()
 	if err != nil {
 		return nil, err
@@ -139,12 +157,17 @@ func (s *Store) GetConflictsForDroid(droid string) ([]ConflictInfo, error) {
 
 	var result []ConflictInfo
 	for _, c := range all {
-		if c.ReservationA.Droid == droid || c.ReservationB.Droid == droid {
+		if getAgent(c.ReservationA) == agent || getAgent(c.ReservationB) == agent {
 			result = append(result, c)
 		}
 	}
 
 	return result, nil
+}
+
+// GetConflictsForDroid is deprecated, use GetConflictsForAgent instead.
+func (s *Store) GetConflictsForDroid(agent string) ([]ConflictInfo, error) {
+	return s.GetConflictsForAgent(agent)
 }
 
 // classifyOverlap determines the type of pattern overlap.
@@ -201,7 +224,7 @@ func determineWinnerLoser(a, b Reservation) (winner, loser Reservation) {
 	if b.CreatedAt.Before(a.CreatedAt) {
 		return b, a
 	}
-	if a.Droid < b.Droid {
+	if getAgent(a) < getAgent(b) {
 		return a, b
 	}
 	return b, a

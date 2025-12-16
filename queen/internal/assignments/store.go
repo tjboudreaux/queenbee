@@ -20,7 +20,7 @@ func NewStore(beadsDir string) *Store {
 }
 
 // Assign creates a new assignment for an issue.
-func (s *Store) Assign(issueID, droid, assignedBy string, opts AssignOptions) (*Assignment, error) {
+func (s *Store) Assign(issueID, agent, assignedBy string, opts AssignOptions) (*Assignment, error) {
 	// Check for existing active assignment
 	existing, err := s.GetActiveForIssue(issueID)
 	if err != nil && !isNotFoundError(err) {
@@ -31,8 +31,12 @@ func (s *Store) Assign(issueID, droid, assignedBy string, opts AssignOptions) (*
 
 	// If there's an existing assignment, mark it as reassigned
 	if existing != nil {
-		if existing.Droid == droid {
-			return existing, nil // Already assigned to this droid
+		existingAgent := existing.Agent
+		if existingAgent == "" {
+			existingAgent = existing.Droid // Backward compat
+		}
+		if existingAgent == agent {
+			return existing, nil // Already assigned to this agent
 		}
 
 		existing.Status = StatusReassigned
@@ -47,7 +51,7 @@ func (s *Store) Assign(issueID, droid, assignedBy string, opts AssignOptions) (*
 		CreatedAt:  now,
 		UpdatedAt:  now,
 		IssueID:    issueID,
-		Droid:      droid,
+		Agent:      agent,
 		AssignedBy: assignedBy,
 		Status:     StatusActive,
 		Worktree:   opts.Worktree,
@@ -55,7 +59,11 @@ func (s *Store) Assign(issueID, droid, assignedBy string, opts AssignOptions) (*
 	}
 
 	if existing != nil {
-		assignment.PreviousDroid = existing.Droid
+		existingAgent := existing.Agent
+		if existingAgent == "" {
+			existingAgent = existing.Droid // Backward compat
+		}
+		assignment.PreviousAgent = existingAgent
 	}
 
 	if err := s.jsonl.Append(assignment); err != nil {
@@ -71,9 +79,9 @@ type AssignOptions struct {
 	Reason   string
 }
 
-// Claim is like Assign but the droid assigns themselves.
-func (s *Store) Claim(issueID, droid string, opts AssignOptions) (*Assignment, error) {
-	return s.Assign(issueID, droid, droid, opts)
+// Claim is like Assign but the agent assigns themselves.
+func (s *Store) Claim(issueID, agent string, opts AssignOptions) (*Assignment, error) {
+	return s.Assign(issueID, agent, agent, opts)
 }
 
 // Release releases an assignment.
@@ -165,8 +173,8 @@ func (s *Store) GetActiveForIssue(issueID string) (*Assignment, error) {
 	return nil, &NotFoundError{IssueID: issueID}
 }
 
-// GetActiveForDroid returns all active assignments for a droid.
-func (s *Store) GetActiveForDroid(droid string) ([]Assignment, error) {
+// GetActiveForAgent returns all active assignments for an agent.
+func (s *Store) GetActiveForAgent(agent string) ([]Assignment, error) {
 	all, err := s.jsonl.ReadAll()
 	if err != nil {
 		return nil, err
@@ -181,12 +189,21 @@ func (s *Store) GetActiveForDroid(droid string) ([]Assignment, error) {
 
 	var result []Assignment
 	for _, a := range byID {
-		if a.Droid == droid && a.Status == StatusActive {
+		assignee := a.Agent
+		if assignee == "" {
+			assignee = a.Droid // Backward compat
+		}
+		if assignee == agent && a.Status == StatusActive {
 			result = append(result, *a)
 		}
 	}
 
 	return result, nil
+}
+
+// GetActiveForDroid is deprecated, use GetActiveForAgent instead.
+func (s *Store) GetActiveForDroid(agent string) ([]Assignment, error) {
+	return s.GetActiveForAgent(agent)
 }
 
 // GetAll returns all assignments, optionally filtered by status.
@@ -213,9 +230,9 @@ func (s *Store) GetAll(statusFilter string) ([]Assignment, error) {
 	return result, nil
 }
 
-// ReleaseAllForDroid releases all active assignments for a droid.
-func (s *Store) ReleaseAllForDroid(droid, reason string) (int, error) {
-	active, err := s.GetActiveForDroid(droid)
+// ReleaseAllForAgent releases all active assignments for an agent.
+func (s *Store) ReleaseAllForAgent(agent, reason string) (int, error) {
+	active, err := s.GetActiveForAgent(agent)
 	if err != nil {
 		return 0, err
 	}
@@ -235,6 +252,11 @@ func (s *Store) ReleaseAllForDroid(droid, reason string) (int, error) {
 	}
 
 	return count, nil
+}
+
+// ReleaseAllForDroid is deprecated, use ReleaseAllForAgent instead.
+func (s *Store) ReleaseAllForDroid(agent, reason string) (int, error) {
+	return s.ReleaseAllForAgent(agent, reason)
 }
 
 // NotFoundError indicates an assignment was not found.

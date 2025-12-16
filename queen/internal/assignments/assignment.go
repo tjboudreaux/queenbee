@@ -3,18 +3,20 @@ package assignments
 
 import "time"
 
-// Assignment represents a task assignment to a droid.
+// Assignment represents a task assignment to an agent.
 type Assignment struct {
 	ID            string    `json:"id"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	IssueID       string    `json:"issue_id"`
-	Droid         string    `json:"droid"`
+	Agent         string    `json:"agent"`
+	Droid         string    `json:"droid,omitempty"` // Deprecated: use Agent
 	AssignedBy    string    `json:"assigned_by"`
 	Status        string    `json:"status"`
 	Worktree      string    `json:"worktree,omitempty"`
 	Reason        string    `json:"reason,omitempty"`
-	PreviousDroid string    `json:"previous_droid,omitempty"`
+	PreviousAgent string    `json:"previous_agent,omitempty"`
+	PreviousDroid string    `json:"previous_droid,omitempty"` // Deprecated: use PreviousAgent
 }
 
 // Assignment statuses

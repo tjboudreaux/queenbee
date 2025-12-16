@@ -23,7 +23,7 @@ var configSetCmd = &cobra.Command{
 	Short: "Set a configuration value",
 	Long: `Set a configuration value.
 Supported keys:
-  droid - Default droid identity for messages and reservations
+  agent - Default agent identity for messages and reservations
   ttl   - Default reservation TTL (e.g., 2h, 30m)`,
 	Args: cobra.ExactArgs(2),
 	RunE: runConfigSet,

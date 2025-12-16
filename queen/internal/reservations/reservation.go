@@ -10,7 +10,8 @@ type Reservation struct {
 	ExpiresAt  time.Time  `json:"expires_at"`
 	ReleasedAt *time.Time `json:"released_at,omitempty"`
 	Pattern    string     `json:"pattern"`
-	Droid      string     `json:"droid"`
+	Agent      string     `json:"agent"`
+	Droid      string     `json:"droid,omitempty"` // Deprecated: use Agent
 	IssueID    string     `json:"issue_id,omitempty"`
 	Status     string     `json:"status"`
 	Exclusive  bool       `json:"exclusive"`
@@ -27,7 +28,8 @@ const (
 // Conflict represents a reservation conflict.
 type Conflict struct {
 	Pattern   string    `json:"pattern"`
-	Droid     string    `json:"droid"`
+	Agent     string    `json:"agent"`
+	Droid     string    `json:"droid,omitempty"` // Deprecated: use Agent
 	IssueID   string    `json:"issue_id,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 }

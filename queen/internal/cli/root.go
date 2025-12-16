@@ -30,7 +30,8 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().String("droid", "", "Current droid identity (overrides QUEEN_DROID env)")
+	rootCmd.PersistentFlags().String("agent", "", "Current agent identity (overrides QUEEN_AGENT env)")
+	rootCmd.PersistentFlags().String("droid", "", "Deprecated: use --agent instead")
 	rootCmd.PersistentFlags().Bool("json", false, "Output in JSON format")
 	rootCmd.PersistentFlags().String("beads-dir", "", "Path to .beads directory (auto-detected if not set)")
 }

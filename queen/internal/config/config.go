@@ -12,7 +12,8 @@ import (
 
 // Config holds queen configuration settings.
 type Config struct {
-	Droid string        `yaml:"droid,omitempty"`
+	Agent string        `yaml:"agent,omitempty"`
+	Droid string        `yaml:"droid,omitempty"` // Deprecated: use Agent
 	TTL   time.Duration `yaml:"ttl,omitempty"`
 }
 
@@ -47,8 +48,10 @@ func SaveConfig(beadsDir string, cfg *Config) error {
 // Set sets a configuration value by key.
 func (c *Config) Set(key, value string) error {
 	switch key {
-	case "droid":
-		c.Droid = value
+	case "agent":
+		c.Agent = value
+	case "droid": // Deprecated: use agent
+		c.Agent = value
 	case "ttl":
 		d, err := time.ParseDuration(value)
 		if err != nil {
@@ -56,7 +59,7 @@ func (c *Config) Set(key, value string) error {
 		}
 		c.TTL = d
 	default:
-		return fmt.Errorf("unknown config key: %s (valid: droid, ttl)", key)
+		return fmt.Errorf("unknown config key: %s (valid: agent, ttl)", key)
 	}
 	return nil
 }
@@ -64,11 +67,15 @@ func (c *Config) Set(key, value string) error {
 // Get retrieves a configuration value by key.
 func (c *Config) Get(key string) (string, error) {
 	switch key {
-	case "droid":
-		if c.Droid == "" {
+	case "agent", "droid":
+		agent := c.Agent
+		if agent == "" {
+			agent = c.Droid // Backward compat
+		}
+		if agent == "" {
 			return "(not set)", nil
 		}
-		return c.Droid, nil
+		return agent, nil
 	case "ttl":
 		if c.TTL == 0 {
 			return "2h (default)", nil

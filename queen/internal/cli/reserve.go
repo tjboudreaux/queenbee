@@ -77,7 +77,7 @@ func runReserve(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	droid, err := config.GetCurrentDroid(cmd, cfg)
+	agent, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func runReserve(cmd *cobra.Command, args []string) error {
 	var allConflicts []reservations.Conflict
 
 	for _, pattern := range args {
-		res, conflicts, err := store.Reserve(droid, pattern, opts)
+		res, conflicts, err := store.Reserve(agent, pattern, opts)
 		if err != nil {
 			return fmt.Errorf("reserving %s: %w", pattern, err)
 		}
@@ -133,7 +133,7 @@ func runReserve(cmd *cobra.Command, args []string) error {
 		fmt.Printf("\n%s Conflicts detected:\n", red("✗"))
 		for _, c := range allConflicts {
 			fmt.Printf("  %s %s held by %s (expires %s)\n",
-				yellow("→"), c.Pattern, c.Droid, formatDuration(time.Until(c.ExpiresAt)))
+				yellow("→"), c.Pattern, c.Agent, formatDuration(time.Until(c.ExpiresAt)))
 		}
 		if !resForce {
 			fmt.Println("\nUse --force to override conflicts")
@@ -208,7 +208,7 @@ func runUnreserve(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	droid, err := config.GetCurrentDroid(cmd, cfg)
+	agent, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func runUnreserve(cmd *cobra.Command, args []string) error {
 	green := color.New(color.FgGreen).SprintFunc()
 
 	if resAll {
-		count, err := store.ReleaseAll(droid)
+		count, err := store.ReleaseAll(agent)
 		if err != nil {
 			return err
 		}
@@ -237,7 +237,7 @@ func runUnreserve(cmd *cobra.Command, args []string) error {
 
 	total := 0
 	for _, pattern := range args {
-		count, err := store.ReleasePattern(droid, pattern)
+		count, err := store.ReleasePattern(agent, pattern)
 		if err != nil {
 			return fmt.Errorf("releasing %s: %w", pattern, err)
 		}
@@ -268,7 +268,7 @@ func printReservation(r reservations.Reservation) {
 	}
 
 	fmt.Printf("  %s%s\n", r.Pattern, excl)
-	fmt.Printf("    %s %s | expires %s\n", gray("Droid:"), r.Droid, formatDuration(time.Until(r.ExpiresAt)))
+	fmt.Printf("    %s %s | expires %s\n", gray("Agent:"), r.Agent, formatDuration(time.Until(r.ExpiresAt)))
 	if r.IssueID != "" {
 		fmt.Printf("    %s %s\n", gray("Issue:"), r.IssueID)
 	}
