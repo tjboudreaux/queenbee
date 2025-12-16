@@ -1,94 +1,145 @@
-# Queen CLI Installation
+# Installing Queen CLI
 
-## Quick Install (recommended)
+Queen is a multi-agent coordination CLI for AI-assisted development workflows.
 
-### Using install script
+## Quick Install
 
-```bash
-curl -sSL https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/install.sh | bash
-```
-
-### Using Homebrew (macOS/Linux)
+### macOS / Linux
 
 ```bash
-brew tap tjboudreaux/tap
-brew install queen
+curl -fsSL https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/scripts/install.sh | bash
 ```
 
-### Using Go
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/install.ps1 | iex
+```
+
+## Alternative Installation Methods
+
+### Go Install
+
+If you have Go 1.21+ installed:
 
 ```bash
 go install github.com/tjboudreaux/queenbee/queen/cmd/queen@latest
 ```
 
-## Manual Installation
+### Homebrew (macOS/Linux)
 
-1. Download the appropriate release for your platform from [GitHub Releases](https://github.com/tjboudreaux/queenbee/releases)
+```bash
+brew install tjboudreaux/tap/queen
+```
 
-2. Extract the archive:
-   ```bash
-   tar -xzf queen_Darwin_arm64.tar.gz  # macOS Apple Silicon
-   tar -xzf queen_Darwin_x86_64.tar.gz # macOS Intel
-   tar -xzf queen_Linux_x86_64.tar.gz  # Linux
-   ```
+### Manual Download
 
-3. Move to your PATH:
-   ```bash
-   sudo mv queen /usr/local/bin/
-   ```
+1. Download the appropriate archive from the [latest release](https://github.com/tjboudreaux/queenbee/releases/latest)
+2. Extract the archive
+3. Move the `queen` binary to a directory in your PATH
 
-4. Verify installation:
-   ```bash
-   queen version
-   ```
+**Available archives:**
+- `queen_Darwin_x86_64.tar.gz` - macOS Intel
+- `queen_Darwin_arm64.tar.gz` - macOS Apple Silicon
+- `queen_Linux_x86_64.tar.gz` - Linux x64
+- `queen_Linux_arm64.tar.gz` - Linux ARM64
+- `queen_Windows_x86_64.zip` - Windows x64
 
-## Build from Source
+### Build from Source
 
 ```bash
 git clone https://github.com/tjboudreaux/queenbee.git
 cd queenbee/queen
 go build -o queen ./cmd/queen
-./queen version
+sudo mv queen /usr/local/bin/
 ```
 
-## Supported Platforms
+## Verifying Installation
 
-| OS | Architecture | Download |
-|----|--------------|----------|
-| macOS | Apple Silicon (arm64) | `queen_Darwin_arm64.tar.gz` |
-| macOS | Intel (x86_64) | `queen_Darwin_x86_64.tar.gz` |
-| Linux | arm64 | `queen_Linux_arm64.tar.gz` |
-| Linux | x86_64 | `queen_Linux_x86_64.tar.gz` |
-| Windows | x86_64 | `queen_Windows_x86_64.zip` |
-| Windows | arm64 | `queen_Windows_arm64.zip` |
-
-## Verify Installation
+After installation, verify queen is working:
 
 ```bash
 queen version
 ```
 
-Should output something like:
-```
-queen v0.1.0 (commit: abc123, built: 2024-01-01T00:00:00Z)
-```
-
 ## Getting Started
 
-After installation, initialize queen in your project:
-
 ```bash
-# Set your droid identity
-queen config set droid my-droid-name
+# Initialize queen in your project
+cd your-project
+queen init
 
-# View your inbox
-queen msg inbox
+# Check status
+queen status
 
-# List reservations
-queen reserved
-
-# View assignments
-queen assignments
+# Get help
+queen --help
 ```
 
-See `queen --help` for all available commands.
+## Updating
+
+To update to the latest version, run the same install command you used initially.
+
+## Uninstalling
+
+### If installed via script or manual download
+
+```bash
+# macOS/Linux
+sudo rm /usr/local/bin/queen
+# or
+rm ~/.local/bin/queen
+```
+
+```powershell
+# Windows
+Remove-Item "$env:LOCALAPPDATA\Programs\queen" -Recurse
+```
+
+### If installed via Go
+
+```bash
+rm $(go env GOPATH)/bin/queen
+```
+
+### If installed via Homebrew
+
+```bash
+brew uninstall queen
+```
+
+## Troubleshooting
+
+### "queen: command not found"
+
+Ensure the installation directory is in your PATH:
+
+```bash
+# Check where queen was installed
+which queen
+
+# If using ~/.local/bin, add to your shell profile:
+echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### macOS Gatekeeper Warning
+
+If you see a warning about an unverified developer, the install script automatically re-signs the binary. If you downloaded manually:
+
+```bash
+codesign --force --sign - /usr/local/bin/queen
+```
+
+### Permission Denied
+
+If you can't write to `/usr/local/bin`, the script will use `~/.local/bin` instead. Alternatively, use sudo:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/scripts/install.sh | sudo bash
+```
+
+## Requirements
+
+- **From releases:** No dependencies (pre-compiled binaries)
+- **From source:** Go 1.21 or later

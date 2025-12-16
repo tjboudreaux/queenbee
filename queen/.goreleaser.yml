@@ -1,9 +1,11 @@
+# GoReleaser configuration for Queen CLI
+# See https://goreleaser.com for documentation
+
 version: 2
 
 before:
   hooks:
     - go mod tidy
-    - go generate ./...
 
 builds:
   - id: queen
@@ -23,25 +25,23 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
 
 archives:
   - id: default
     format: tar.gz
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
     files:
       - README.md
       - LICENSE*
+      - INSTALL.md
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
+  algorithm: sha256
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
@@ -50,11 +50,52 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
-      - Merge pull request
-      - Merge branch
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: "Features"
+      regexp: '^.*feat(\(\w+\))?:.*$'
+      order: 0
+    - title: "Bug Fixes"
+      regexp: '^.*fix(\(\w+\))?:.*$'
+      order: 1
+    - title: "Others"
+      order: 999
+
+release:
+  github:
+    owner: tjboudreaux
+    name: queenbee
+  draft: false
+  prerelease: auto
+  name_template: "Queen CLI v{{.Version}}"
+  header: |
+    ## Queen CLI v{{.Version}}
+
+    Pre-compiled binaries for Linux, macOS (Intel & Apple Silicon), and Windows.
+
+    ### Installation
+
+    **Quick Install (macOS/Linux):**
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/scripts/install.sh | bash
+    ```
+
+    **Windows (PowerShell):**
+    ```powershell
+    irm https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/install.ps1 | iex
+    ```
+
+    **Go Install:**
+    ```bash
+    go install github.com/tjboudreaux/queenbee/queen/cmd/queen@latest
+    ```
+
+    **Manual Install:**
+    Download the appropriate binary for your platform below, extract it, and place it in your PATH.
 
 brews:
   - name: queen
@@ -64,7 +105,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     folder: Formula
     homepage: https://github.com/tjboudreaux/queenbee
-    description: Multi-agent coordination CLI for QueenBee
+    description: Multi-agent coordination CLI for AI-assisted development
     license: MIT
     skip_upload: auto
     test: |
@@ -78,16 +119,8 @@ nfpms:
     vendor: QueenBee
     homepage: https://github.com/tjboudreaux/queenbee
     maintainer: TJ Boudreaux
-    description: Multi-agent coordination CLI for QueenBee
+    description: Multi-agent coordination CLI for AI-assisted development
     license: MIT
     formats:
       - deb
       - rpm
-
-release:
-  github:
-    owner: tjboudreaux
-    name: queenbee
-  draft: false
-  prerelease: auto
-  name_template: "Queen CLI v{{.Version}}"

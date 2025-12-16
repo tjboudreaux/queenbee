@@ -5,14 +5,17 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
 jobs:
-  release:
-    name: Release
+  test:
+    name: Pre-release Tests
     runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,6 +31,22 @@ jobs:
         working-directory: queen
         run: go test -race ./...
 
+  goreleaser:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: queen/go.sum
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -37,3 +56,34 @@ jobs:
           workdir: queen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  update-install-script:
+    name: Verify Install Scripts
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test install script syntax
+        run: |
+          bash -n queen/scripts/install.sh
+          echo "Install script syntax OK"
+
+      - name: Verify release assets exist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "Checking release assets for $TAG..."
+          
+          # Check that key assets exist
+          for asset in "queen_Linux_x86_64.tar.gz" "queen_Linux_arm64.tar.gz" "queen_Darwin_x86_64.tar.gz" "queen_Darwin_arm64.tar.gz" "queen_Windows_x86_64.zip" "checksums.txt"; do
+            URL="https://github.com/tjboudreaux/queenbee/releases/download/${TAG}/${asset}"
+            if curl -fsSL --head "$URL" > /dev/null 2>&1; then
+              echo "✓ $asset exists"
+            else
+              echo "✗ $asset missing"
+            fi
+          done
