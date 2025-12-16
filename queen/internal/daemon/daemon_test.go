@@ -26,7 +26,7 @@ func TestDaemon_New(t *testing.T) {
 	d := setupTestDaemon(t)
 
 	if d == nil {
-		t.Error("Expected daemon to be created")
+		t.Fatal("Expected daemon to be created")
 	}
 	if d.config.PollInterval != 100*time.Millisecond {
 		t.Errorf("PollInterval = %v, want %v", d.config.PollInterval, 100*time.Millisecond)

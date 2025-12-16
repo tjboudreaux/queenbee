@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/config"
 	"github.com/tjboudreaux/queenbee/queen/internal/messages"
@@ -241,7 +242,8 @@ func runMsgInbox(cmd *cobra.Command, args []string) error {
 	}
 
 	if msgSince != "" {
-		t, err := parseDuration(msgSince)
+		var t time.Time
+		t, err = parseDuration(msgSince)
 		if err != nil {
 			return fmt.Errorf("invalid --since: %w", err)
 		}

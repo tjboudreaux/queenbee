@@ -8,7 +8,7 @@ import (
 
 func TestLoadRegistry(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -43,7 +43,7 @@ rules:
 
 default_agent: backend-engineer
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +94,7 @@ default_agent: backend-engineer
 
 func TestDefaultMaxConcurrent(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	// Config without explicit max_concurrent
 	content := `
 version: 1
@@ -106,7 +106,7 @@ agents:
       work_issue:
         run: "echo T_ISSUE_ID"
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -129,7 +129,7 @@ agents:
 
 func TestMatchAgent(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -158,7 +158,7 @@ rules:
 
 default_agent: ui-engineer
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -197,7 +197,7 @@ default_agent: ui-engineer
 
 func TestBuildCommand(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -210,7 +210,7 @@ agents:
       plan_issue:
         run: "factory plan T_ISSUE_ID"
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -250,7 +250,7 @@ agents:
 
 func TestBuildCommand_T_AGENT(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -265,7 +265,7 @@ agents:
       both_placeholders:
         run: "factory run --agent T_AGENT --issue T_ISSUE_ID --verbose"
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -321,7 +321,7 @@ agents:
 
 func TestBuildCommand_T_AGENT_EdgeCases(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -342,7 +342,7 @@ agents:
       work_issue:
         run: "echo T_AGENT"
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -378,7 +378,7 @@ agents:
 
 func TestBuildCommand_T_AGENT_NoReplacement(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -391,7 +391,7 @@ agents:
       case_sensitive:
         run: "echo t_agent T_Agent T_AGENT"
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -461,7 +461,7 @@ func TestCommandHash(t *testing.T) {
 
 func TestFindAgentsWithSkill(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -482,7 +482,7 @@ agents:
       work_issue:
         run: "echo T_ISSUE_ID"
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)

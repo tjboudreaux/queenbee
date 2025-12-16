@@ -52,9 +52,9 @@ type Rule struct {
 
 // RuleMatch defines matching criteria for a rule.
 type RuleMatch struct {
-	Labels []string `yaml:"labels"`
-	Type   string   `yaml:"type,omitempty"`   // task, epic, bug
-	Priority string `yaml:"priority,omitempty"` // P0, P1, P2, P3
+	Labels   []string `yaml:"labels"`
+	Type     string   `yaml:"type,omitempty"`     // task, epic, bug
+	Priority string   `yaml:"priority,omitempty"` // P0, P1, P2, P3
 }
 
 // Load loads the registry from a .queen.yaml file.

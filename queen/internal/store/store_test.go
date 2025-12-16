@@ -115,7 +115,7 @@ func TestJSONLStore_ReadAll_NonExistentFile(t *testing.T) {
 		t.Fatalf("ReadAll should not error for non-existent file: %v", err)
 	}
 
-	if records != nil && len(records) != 0 {
+	if len(records) != 0 {
 		t.Errorf("Expected nil or empty slice, got %v", records)
 	}
 }

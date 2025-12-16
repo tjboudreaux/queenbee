@@ -8,6 +8,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/config"
 	"github.com/tjboudreaux/queenbee/queen/internal/reservations"
@@ -153,10 +154,12 @@ func runReserved(cmd *cobra.Command, args []string) error {
 
 	// Check specific path
 	if resPath != "" {
-		reservations, err := store.CheckPath(resPath)
+		var pathReservations []reservations.Reservation
+		pathReservations, err = store.CheckPath(resPath)
 		if err != nil {
 			return err
 		}
+		reservations := pathReservations
 
 		if getJSONFlag(cmd) {
 			return json.NewEncoder(os.Stdout).Encode(reservations)

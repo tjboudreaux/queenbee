@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/config"
 	"github.com/tjboudreaux/queenbee/queen/internal/reservations"
@@ -42,12 +43,14 @@ func runConflicts(cmd *cobra.Command, args []string) error {
 	var conflicts []reservations.ConflictInfo
 
 	if conflictsMine {
-		cfg, err := config.LoadConfig(beadsDir)
+		var cfg *config.Config
+		cfg, err = config.LoadConfig(beadsDir)
 		if err != nil {
 			return fmt.Errorf("loading config: %w", err)
 		}
 
-		droid, err := config.GetCurrentDroid(cmd, cfg)
+		var droid string
+		droid, err = config.GetCurrentDroid(cmd, cfg)
 		if err != nil {
 			return err
 		}

@@ -12,10 +12,12 @@ import (
 func GetCurrentAgent(cmd *cobra.Command, cfg *Config) (string, error) {
 	// 1. Check --agent flag (highest priority)
 	if cmd != nil {
+		//nolint:errcheck // GetString returns error only if flag doesn't exist; we check value
 		if agent, _ := cmd.Flags().GetString("agent"); agent != "" {
 			return agent, nil
 		}
 		// Backward compat: check --droid flag
+		//nolint:errcheck // GetString returns error only if flag doesn't exist; we check value
 		if agent, _ := cmd.Flags().GetString("droid"); agent != "" {
 			return agent, nil
 		}

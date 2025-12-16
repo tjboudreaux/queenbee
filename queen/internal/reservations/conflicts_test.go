@@ -215,8 +215,8 @@ func TestClassifyOverlap(t *testing.T) {
 		expected string
 	}{
 		{"src/**", "src/**", "exact"},
-		{"**", "src/**", "superset"}, // ** is more general than src/**
-		{"src/**", "**", "subset"},   // src/** is more specific than **
+		{"**", "src/**", "superset"},        // ** is more general than src/**
+		{"src/**", "**", "subset"},          // src/** is more specific than **
 		{"src/a/**", "src/b/**", "partial"}, // Neither contains the other
 	}
 

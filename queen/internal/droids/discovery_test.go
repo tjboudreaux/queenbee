@@ -99,7 +99,7 @@ func TestDiscoverDroids_NoDroidsDirectory(t *testing.T) {
 		t.Fatalf("DiscoverDroids should not error for missing directory: %v", err)
 	}
 
-	if droids != nil && len(droids) != 0 {
+	if len(droids) != 0 {
 		t.Errorf("Expected nil or empty slice, got %v", droids)
 	}
 }

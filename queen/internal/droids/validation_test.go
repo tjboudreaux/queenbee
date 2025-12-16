@@ -40,10 +40,10 @@ func TestValidateDroid_SuggestsSimilarNames(t *testing.T) {
 		input      string
 		shouldFind string
 	}{
-		{"ui-eng", "ui-engineer"},           // Prefix match
-		{"engineer", "ui-engineer"},         // Substring match
-		{"ux", "ux-designer"},               // Prefix match
-		{"backend", "backend-engineer"},     // Prefix match
+		{"ui-eng", "ui-engineer"},       // Prefix match
+		{"engineer", "ui-engineer"},     // Substring match
+		{"ux", "ux-designer"},           // Prefix match
+		{"backend", "backend-engineer"}, // Prefix match
 	}
 
 	for _, tc := range tests {

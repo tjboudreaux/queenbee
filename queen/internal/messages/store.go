@@ -280,14 +280,14 @@ func sortMessagesByDate(msgs []Message, descending bool) {
 
 // Stats holds global message statistics.
 type Stats struct {
-	Total       int            `json:"total"`
-	Unread      int            `json:"unread"`
-	ByAgent     map[string]int `json:"by_agent"`      // inbox count per agent
-	BySender    map[string]int `json:"by_sender"`     // sent count per agent
+	Total        int            `json:"total"`
+	Unread       int            `json:"unread"`
+	ByAgent      map[string]int `json:"by_agent"`  // inbox count per agent
+	BySender     map[string]int `json:"by_sender"` // sent count per agent
 	ByImportance map[string]int `json:"by_importance"`
-	Since       time.Time      `json:"since,omitempty"`
-	SinceTotal  int            `json:"since_total,omitempty"`
-	SinceUnread int            `json:"since_unread,omitempty"`
+	Since        time.Time      `json:"since,omitempty"`
+	SinceTotal   int            `json:"since_total,omitempty"`
+	SinceUnread  int            `json:"since_unread,omitempty"`
 }
 
 // GetStats returns global message statistics.

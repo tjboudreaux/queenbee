@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/registry"
 )
 
@@ -133,7 +134,7 @@ func newQueueStatsCmd() *cobra.Command {
 			fmt.Println("Queue Statistics")
 			fmt.Println("================")
 			fmt.Printf("Total queued: %d\n", stats.TotalQueued)
-			
+
 			if stats.OldestAge > 0 {
 				fmt.Printf("Oldest item: %s ago\n", stats.OldestAge.Round(time.Second))
 			}

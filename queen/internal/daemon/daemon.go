@@ -27,13 +27,13 @@ type Config struct {
 
 // Status represents daemon status.
 type Status struct {
-	Running        bool                     `json:"running"`
-	PID            int                      `json:"pid,omitempty"`
-	StartedAt      time.Time                `json:"started_at,omitempty"`
-	Uptime         string                   `json:"uptime,omitempty"`
-	RunningAgents  int                      `json:"running_agents,omitempty"`
-	MaxAgents      int                      `json:"max_agents,omitempty"`
-	RegistryLoaded bool                     `json:"registry_loaded,omitempty"`
+	Running        bool      `json:"running"`
+	PID            int       `json:"pid,omitempty"`
+	StartedAt      time.Time `json:"started_at,omitempty"`
+	Uptime         string    `json:"uptime,omitempty"`
+	RunningAgents  int       `json:"running_agents,omitempty"`
+	MaxAgents      int       `json:"max_agents,omitempty"`
+	RegistryLoaded bool      `json:"registry_loaded,omitempty"`
 }
 
 // Daemon manages the queen daemon process.
@@ -87,7 +87,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if workDir == "" {
 		workDir = filepath.Dir(d.config.BeadsDir)
 	}
-	
+
 	reg, err := registry.Load(workDir)
 	if err != nil {
 		d.log("Warning: No registry loaded: %v", err)
@@ -97,7 +97,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		d.runner = registry.NewRunner(reg, d.config.BeadsDir, workDir)
 		d.queue = registry.NewWorkQueue(d.config.BeadsDir)
 		d.log("Registry loaded: %d agents, max_agents=%d, queued=%d", len(reg.Agents), reg.Daemon.MaxAgents, d.queue.Len())
-		
+
 		// Use registry poll interval if not overridden
 		if d.config.PollInterval == 0 {
 			d.config.PollInterval = reg.Daemon.PollInterval
@@ -118,7 +118,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			d.log("Context cancelled, shutting down")
+			d.log("Context canceled, shutting down")
 			return nil
 		case sig := <-sigChan:
 			d.log("Received signal: %v, shutting down", sig)
@@ -184,7 +184,7 @@ func (d *Daemon) GetStatus() Status {
 	}
 
 	// On Unix, FindProcess always succeeds, so we need to check
-	if err := process.Signal(syscall.Signal(0)); err != nil {
+	if sigErr := process.Signal(syscall.Signal(0)); sigErr != nil {
 		d.removePIDFile()
 		return Status{Running: false}
 	}
@@ -311,7 +311,7 @@ type BeadsIssue struct {
 func (d *Daemon) getReadyIssues() ([]BeadsIssue, error) {
 	cmd := exec.Command("bd", "ready", "--json")
 	cmd.Dir = filepath.Dir(d.config.BeadsDir)
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("running bd ready: %w", err)
@@ -373,7 +373,7 @@ func (d *Daemon) processIssue(issue BeadsIssue) {
 
 	// Run the command
 	d.log("Starting %s.%s for issue %s", agent, commandName, issue.ID)
-	
+
 	ctx := context.Background()
 	rc, err := d.runner.Run(ctx, agent, commandName, issue.ID)
 	if err != nil {
@@ -440,7 +440,7 @@ func (d *Daemon) log(format string, args ...interface{}) {
 	line := fmt.Sprintf("[%s] %s\n", timestamp, msg)
 
 	if d.logFile != nil {
-		d.logFile.WriteString(line)
+		_, _ = d.logFile.WriteString(line) // Ignore write errors for logging
 	}
 }
 
@@ -465,6 +465,9 @@ func (d *Daemon) removePIDFile() {
 
 // StatusJSON returns status as JSON.
 func (s Status) JSON() string {
-	data, _ := json.MarshalIndent(s, "", "  ")
+	data, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		return "{}" // Return empty JSON on error
+	}
 	return string(data)
 }

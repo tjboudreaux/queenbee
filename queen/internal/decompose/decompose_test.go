@@ -321,14 +321,14 @@ func TestCalculateConfidence(t *testing.T) {
 
 func TestGenerateWarnings(t *testing.T) {
 	// Test empty tasks warning
-	warnings := generateWarnings([]TaskSuggestion{}, "desc")
+	warnings := generateWarnings([]TaskSuggestion{})
 	if len(warnings) == 0 {
 		t.Error("Expected warning for empty tasks")
 	}
 
 	// Test too many tasks warning
 	manyTasks := make([]TaskSuggestion, 20)
-	warnings = generateWarnings(manyTasks, "desc")
+	warnings = generateWarnings(manyTasks)
 	foundManyWarning := false
 	for _, w := range warnings {
 		if w == "Many tasks extracted. Consider splitting into sub-epics." {

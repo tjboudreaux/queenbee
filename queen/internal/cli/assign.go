@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/assignments"
 	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/config"
@@ -91,8 +92,8 @@ func runAssign(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate issue exists
-	if err := beads.ValidateIssueExists(beadsDir, issueID); err != nil {
-		return fmt.Errorf("invalid issue: %w", err)
+	if validateErr := beads.ValidateIssueExists(beadsDir, issueID); validateErr != nil {
+		return fmt.Errorf("invalid issue: %w", validateErr)
 	}
 
 	store := assignments.NewStore(beadsDir)
@@ -137,8 +138,8 @@ func runClaim(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate issue exists
-	if err := beads.ValidateIssueExists(beadsDir, issueID); err != nil {
-		return fmt.Errorf("invalid issue: %w", err)
+	if validateErr := beads.ValidateIssueExists(beadsDir, issueID); validateErr != nil {
+		return fmt.Errorf("invalid issue: %w", validateErr)
 	}
 
 	store := assignments.NewStore(beadsDir)

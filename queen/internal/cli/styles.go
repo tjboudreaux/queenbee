@@ -47,12 +47,14 @@ var (
 	TabStyle = lipgloss.NewStyle().
 			Padding(0, 2)
 
-	ActiveTabStyle = TabStyle.Copy().
+	ActiveTabStyle = lipgloss.NewStyle().
+			Padding(0, 2).
 			Bold(true).
 			Background(lipgloss.Color("62")).
 			Foreground(lipgloss.Color("230"))
 
-	InactiveTabStyle = TabStyle.Copy().
+	InactiveTabStyle = lipgloss.NewStyle().
+				Padding(0, 2).
 				Foreground(ColorGray)
 
 	TabGapStyle = lipgloss.NewStyle().
@@ -155,19 +157,23 @@ var (
 	BadgeStyle = lipgloss.NewStyle().
 			Padding(0, 1)
 
-	UrgentBadge = BadgeStyle.Copy().
+	UrgentBadge = lipgloss.NewStyle().
+			Padding(0, 1).
 			Background(ColorRed).
 			Foreground(lipgloss.Color("230"))
 
-	HighBadge = BadgeStyle.Copy().
+	HighBadge = lipgloss.NewStyle().
+			Padding(0, 1).
 			Background(ColorYellow).
 			Foreground(lipgloss.Color("0"))
 
-	SuccessBadge = BadgeStyle.Copy().
+	SuccessBadge = lipgloss.NewStyle().
+			Padding(0, 1).
 			Background(ColorGreen).
 			Foreground(lipgloss.Color("0"))
 
-	InfoBadge = BadgeStyle.Copy().
+	InfoBadge = lipgloss.NewStyle().
+			Padding(0, 1).
 			Background(ColorBlue).
 			Foreground(lipgloss.Color("230"))
 )
@@ -177,25 +183,25 @@ var SpinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "�
 
 // Icons
 const (
-	IconInbox    = "📬"
-	IconSent     = "📤"
-	IconMessage  = "📧"
-	IconUrgent   = "🚨"
-	IconHigh     = "⚠️"
-	IconAgent    = "🤖"
-	IconQueue    = "📦"
-	IconStats    = "📊"
-	IconCrown    = "👑"
-	IconCheck    = "✓"
-	IconCross    = "✗"
-	IconDot      = "●"
-	IconCircle   = "○"
-	IconArrow    = "→"
-	IconPlay     = "▶"
-	IconPause    = "⏸"
-	IconRefresh  = "↻"
-	IconUp       = "↑"
-	IconDown     = "↓"
-	IconUnread   = "●"
-	IconRead     = " "
+	IconInbox   = "📬"
+	IconSent    = "📤"
+	IconMessage = "📧"
+	IconUrgent  = "🚨"
+	IconHigh    = "⚠️"
+	IconAgent   = "🤖"
+	IconQueue   = "📦"
+	IconStats   = "📊"
+	IconCrown   = "👑"
+	IconCheck   = "✓"
+	IconCross   = "✗"
+	IconDot     = "●"
+	IconCircle  = "○"
+	IconArrow   = "→"
+	IconPlay    = "▶"
+	IconPause   = "⏸"
+	IconRefresh = "↻"
+	IconUp      = "↑"
+	IconDown    = "↓"
+	IconUnread  = "●"
+	IconRead    = " "
 )

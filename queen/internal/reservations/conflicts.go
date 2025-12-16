@@ -15,7 +15,7 @@ type ConflictInfo struct {
 // Resolution represents a conflict resolution suggestion.
 type Resolution struct {
 	ConflictID  string `json:"conflict_id"`
-	Action      string `json:"action"`      // "wait", "release", "coordinate", "alternative"
+	Action      string `json:"action"` // "wait", "release", "coordinate", "alternative"
 	Description string `json:"description"`
 	Priority    int    `json:"priority"` // Lower is higher priority
 }
@@ -190,7 +190,10 @@ func classifyOverlap(a, b string) string {
 }
 
 // suggestAlternative suggests a non-overlapping pattern.
-func suggestAlternative(pattern, conflictingPattern string) string {
+// TODO: Implement proper alternative suggestions. Currently a placeholder.
+//
+//nolint:unparam // Intentionally placeholder - always returns ""
+func suggestAlternative(pattern, _ string) string {
 	// Simple heuristic: if pattern is a glob, suggest a more specific path
 	if len(pattern) > 2 && pattern[len(pattern)-2:] == "**" {
 		// e.g., "src/**" conflicts with "src/api/**"

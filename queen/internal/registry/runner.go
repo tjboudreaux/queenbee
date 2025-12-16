@@ -25,12 +25,12 @@ type RunningCommand struct {
 
 // Runner manages command execution and tracking.
 type Runner struct {
-	registry    *Registry
-	beadsDir    string
-	running     map[string]*RunningCommand // keyed by HashID
-	mu          sync.RWMutex
-	stateFile   string
-	workDir     string
+	registry  *Registry
+	beadsDir  string
+	running   map[string]*RunningCommand // keyed by HashID
+	mu        sync.RWMutex
+	stateFile string
+	workDir   string
 }
 
 // NewRunner creates a new command runner.
@@ -118,7 +118,7 @@ func (r *Runner) Run(ctx context.Context, agentName, commandName, issueID string
 	logDir := filepath.Join(r.beadsDir, "queen_logs")
 	os.MkdirAll(logDir, 0755)
 	logFile := filepath.Join(logDir, fmt.Sprintf("%s_%s_%s.log", agentName, commandName, issueID))
-	
+
 	f, err := os.Create(logFile)
 	if err != nil {
 		return nil, fmt.Errorf("creating log file: %w", err)
@@ -336,10 +336,10 @@ func (r *Runner) loadState() {
 
 // Stats returns runner statistics.
 type RunnerStats struct {
-	TotalRunning   int            `json:"total_running"`
-	MaxAgents      int            `json:"max_agents"`
-	ByAgent        map[string]int `json:"by_agent"`
-	ByCommand      map[string]int `json:"by_command"`
+	TotalRunning int            `json:"total_running"`
+	MaxAgents    int            `json:"max_agents"`
+	ByAgent      map[string]int `json:"by_agent"`
+	ByCommand    map[string]int `json:"by_command"`
 }
 
 // Stats returns current runner statistics.

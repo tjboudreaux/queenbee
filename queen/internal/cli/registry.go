@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/registry"
 )
 
@@ -279,7 +280,7 @@ func newRegistryMatchCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Matched agent: %s\n", agent)
-			
+
 			// Show available commands
 			if a, ok := reg.GetAgent(agent); ok {
 				fmt.Println("Available commands:")

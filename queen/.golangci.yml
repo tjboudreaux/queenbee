@@ -39,6 +39,11 @@ issues:
       linters:
         - unparam
     
+    # Allow unchecked errors in test files (common pattern)
+    - path: _test\.go
+      linters:
+        - errcheck
+    
     # Allow dot imports in test files for testify
     - path: _test\.go
       text: "dot-imports"

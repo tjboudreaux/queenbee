@@ -229,7 +229,7 @@ func calculateSkillMatch(taskLabels, droidSkills []string) float64 {
 
 // AssignmentResult holds the outcome of applying assignments.
 type AssignmentResult struct {
-	Assigned   int      `json:"assigned"`
-	Failed     int      `json:"failed"`
-	Messages   []string `json:"messages"`
+	Assigned int      `json:"assigned"`
+	Failed   int      `json:"failed"`
+	Messages []string `json:"messages"`
 }

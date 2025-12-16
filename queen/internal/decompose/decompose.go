@@ -17,12 +17,12 @@ type TaskSuggestion struct {
 
 // DecompositionResult contains the epic analysis and suggested tasks.
 type DecompositionResult struct {
-	EpicID      string           `json:"epic_id"`
-	EpicTitle   string           `json:"epic_title"`
-	Summary     string           `json:"summary"`
-	Tasks       []TaskSuggestion `json:"tasks"`
-	Confidence  float64          `json:"confidence"`
-	Warnings    []string         `json:"warnings"`
+	EpicID     string           `json:"epic_id"`
+	EpicTitle  string           `json:"epic_title"`
+	Summary    string           `json:"summary"`
+	Tasks      []TaskSuggestion `json:"tasks"`
+	Confidence float64          `json:"confidence"`
+	Warnings   []string         `json:"warnings"`
 }
 
 // Epic represents the minimal epic structure for decomposition.
@@ -70,7 +70,7 @@ func Decompose(epic Epic) DecompositionResult {
 	result.Confidence = calculateConfidence(len(result.Tasks), epic.Description)
 
 	// Add warnings
-	result.Warnings = generateWarnings(result.Tasks, epic.Description)
+	result.Warnings = generateWarnings(result.Tasks)
 
 	// Generate summary
 	result.Summary = generateSummary(result.Tasks)
@@ -315,7 +315,7 @@ func calculateConfidence(taskCount int, description string) float64 {
 	return confidence
 }
 
-func generateWarnings(tasks []TaskSuggestion, description string) []string {
+func generateWarnings(tasks []TaskSuggestion) []string {
 	var warnings []string
 
 	if len(tasks) == 0 {

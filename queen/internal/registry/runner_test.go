@@ -10,7 +10,7 @@ import (
 
 func setupTestRegistry(t *testing.T) (*Registry, string) {
 	dir := t.TempDir()
-	
+
 	content := `
 version: 1
 
@@ -32,7 +32,7 @@ agents:
       work_issue:
         run: "sleep 0.1"
 `
-	
+
 	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -251,7 +251,7 @@ func TestRunnerStop(t *testing.T) {
 
 func TestRunnerCompletionCleanup(t *testing.T) {
 	reg, dir := setupTestRegistry(t)
-	
+
 	// Use a very short command
 	reg.Agents["test-agent"] = Agent{
 		Skills: []string{"testing"},
@@ -259,7 +259,7 @@ func TestRunnerCompletionCleanup(t *testing.T) {
 			"work_issue": {Run: "echo T_ISSUE_ID", MaxConcurrent: 2},
 		},
 	}
-	
+
 	runner := NewRunner(reg, dir, dir)
 	defer runner.StopAll()
 
@@ -281,7 +281,7 @@ func TestRunnerCompletionCleanup(t *testing.T) {
 
 func TestRunnerStatePersistence(t *testing.T) {
 	reg, dir := setupTestRegistry(t)
-	
+
 	// Use a longer-running command
 	reg.Agents["test-agent"] = Agent{
 		Skills: []string{"testing"},
@@ -289,7 +289,7 @@ func TestRunnerStatePersistence(t *testing.T) {
 			"work_issue": {Run: "sleep 10", MaxConcurrent: 2},
 		},
 	}
-	
+
 	runner := NewRunner(reg, dir, dir)
 	ctx := context.Background()
 
@@ -306,7 +306,7 @@ func TestRunnerStatePersistence(t *testing.T) {
 
 	// Create new runner (simulates restart)
 	runner2 := NewRunner(reg, dir, dir)
-	
+
 	// Should recognize the running process
 	if !runner2.IsRunning("test-agent", "work_issue", "gb-123") {
 		t.Error("should recognize running process after reload")

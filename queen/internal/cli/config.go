@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/config"
 )

@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/messages"
 	"github.com/tjboudreaux/queenbee/queen/internal/registry"
@@ -65,10 +66,6 @@ var (
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderBottom(true).
 			BorderForeground(lipgloss.Color("#333"))
-
-	logoStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(brandPrimary)
 
 	headerTitleStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#fff")).
@@ -132,11 +129,6 @@ var (
 			Foreground(lipgloss.Color("#000")).
 			Background(lipgloss.Color("#F59E0B")).
 			Padding(0, 1)
-
-	normalBadgeStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#fff")).
-				Background(lipgloss.Color("#6B7280")).
-				Padding(0, 1)
 )
 
 // ============================================================================
@@ -162,8 +154,8 @@ func newMessageDelegate() messageDelegate {
 	return messageDelegate{}
 }
 
-func (d messageDelegate) Height() int                         { return 4 }
-func (d messageDelegate) Spacing() int                        { return 0 }
+func (d messageDelegate) Height() int                               { return 4 }
+func (d messageDelegate) Spacing() int                              { return 0 }
 func (d messageDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
 
 func (d messageDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
@@ -198,13 +190,13 @@ func (d messageDelegate) Render(w io.Writer, m list.Model, index int, item list.
 
 	fromName := truncateStr2(msg.From, 20)
 	line1 := fmt.Sprintf("%s%s", unreadDot, fromStyle.Render(fromName))
-	
+
 	// Add arrow and recipient
 	toName := truncateStr2(msg.To, 15)
 	arrow := lipgloss.NewStyle().Foreground(lipgloss.Color("#444")).Render(" → ")
 	toStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888"))
 	line1 += arrow + toStyle.Render(toName)
-	
+
 	// Pad and add time
 	padding := width - lipgloss.Width(line1) - len(timeStr)
 	if padding > 0 {
@@ -336,9 +328,9 @@ type msgTuiModel struct {
 	currentAgent int // -1 = all
 	viewMode     msgViewMode
 
-	list       list.Model
-	viewport   viewport.Model
-	delegate   messageDelegate
+	list     list.Model
+	viewport viewport.Model
+	delegate messageDelegate
 
 	allMessages []messages.Message
 	selectedMsg *messages.Message

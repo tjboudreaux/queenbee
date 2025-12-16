@@ -6,7 +6,6 @@ import (
 
 	"github.com/tjboudreaux/queenbee/queen/internal/autoassign"
 	"github.com/tjboudreaux/queenbee/queen/internal/decompose"
-	"github.com/tjboudreaux/queenbee/queen/internal/droids"
 )
 
 // testDroids returns a set of droids for auto-assignment testing.
@@ -323,16 +322,6 @@ func TestBasicWorkflow_LoadBalancing(t *testing.T) {
 	if loadCount["droid-b"] == 0 && len(plan.Assignments) > 0 {
 		t.Logf("Warning: droid-b with lowest load got no assignments")
 	}
-}
-
-// Helper to find droid by name
-func findDroidByName(list []droids.Droid, name string) *droids.Droid {
-	for _, d := range list {
-		if d.Name == name {
-			return &d
-		}
-	}
-	return nil
 }
 
 // TestBasicWorkflow_FullCycle tests a complete work cycle with all components.
