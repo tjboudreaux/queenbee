@@ -2,8 +2,7 @@
 
 # QueenBee
 
-[![CI - Queen](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml/badge.svg)](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml)
-[![CI - QueenUI](https://github.com/tjboudreaux/queenbee/actions/workflows/ci-ui.yml/badge.svg)](https://github.com/tjboudreaux/queenbee/actions/workflows/ci-ui.yml)
+[![CI](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml/badge.svg)](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/tjboudreaux/queenbee?include_prereleases)](https://github.com/tjboudreaux/queenbee/releases)
 
 **Unified AI Agent Orchestration for Factory Agents**
@@ -100,18 +99,6 @@ go install github.com/tjboudreaux/queenbee/queen/cmd/queen@latest
 ```bash
 queen version
 ```
-
-### QueenUI (Optional Dashboard)
-
-For the browser-based coordination dashboard:
-
-```bash
-cd queenui
-npm install
-npm start
-```
-
-Then open http://localhost:3000
 
 See [queen/INSTALL.md](queen/INSTALL.md) for detailed installation options and platform-specific instructions.
 

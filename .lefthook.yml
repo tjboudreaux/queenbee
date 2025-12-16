@@ -23,27 +23,6 @@ pre-commit:
       glob: "*.go"
       run: go test -short ./...
 
-    # QueenUI (Node) checks - only run if JS/TS files changed
-    ui-lint:
-      root: queenui/
-      glob: "*.{js,ts}"
-      run: npm run lint
-
-    ui-tsc:
-      root: queenui/
-      glob: "*.{js,ts}"
-      run: npm run tsc
-
-    ui-test:
-      root: queenui/
-      glob: "*.{js,ts}"
-      run: npm test
-
-    ui-prettier:
-      root: queenui/
-      glob: "*.{js,ts,json,css,html}"
-      run: npm run prettier:check
-
 commit-msg:
   commands:
     conventional-commits:
@@ -64,7 +43,7 @@ commit-msg:
           echo ""
           echo "Examples:"
           echo "  feat(queen): add watch command"
-          echo "  fix(queenui): handle empty inbox"
+          echo "  fix(queen): handle empty inbox"
           echo "  docs: update installation instructions"
           echo "  chore: update dependencies"
           echo ""
