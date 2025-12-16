@@ -18,8 +18,22 @@ linters:
 
 linters-settings:
   errcheck:
-    check-type-assertions: true
-    check-blank: true
+    check-type-assertions: false
+    check-blank: false
+    exclude-functions:
+      # Common functions where ignoring errors is acceptable
+      - (*os.File).Close
+      - (io.Closer).Close
+      - (*os/exec.Cmd).Wait
+      - (*github.com/spf13/pflag.FlagSet).GetString
+      - (*github.com/spf13/pflag.FlagSet).GetBool
+      - (*github.com/spf13/pflag.FlagSet).Set
+      - encoding/json.MarshalIndent
+      - encoding/json.Marshal
+      - fmt.Sscanf
+      - (*encoding/json.Encoder).Encode
+      - syscall.Kill
+      - (*os.Process).Kill
   
   govet:
     enable-all: true

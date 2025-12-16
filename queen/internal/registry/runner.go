@@ -116,7 +116,7 @@ func (r *Runner) Run(ctx context.Context, agentName, commandName, issueID string
 
 	// Create log file for output
 	logDir := filepath.Join(r.beadsDir, "queen_logs")
-	os.MkdirAll(logDir, 0755)
+	_ = os.MkdirAll(logDir, 0755) //nolint:errcheck // Best-effort directory creation
 	logFile := filepath.Join(logDir, fmt.Sprintf("%s_%s_%s.log", agentName, commandName, issueID))
 
 	f, err := os.Create(logFile)
@@ -148,16 +148,16 @@ func (r *Runner) Run(ctx context.Context, agentName, commandName, issueID string
 	r.running[rc.HashID] = rc
 	r.mu.Unlock()
 
-	r.saveState()
+	_ = r.saveState() //nolint:errcheck // Best-effort persistence
 
 	// Start goroutine to wait for completion
 	go func() {
-		cmd.Wait()
+		_ = cmd.Wait() //nolint:errcheck // Expected to potentially fail
 		f.Close()
 		r.mu.Lock()
 		delete(r.running, rc.HashID)
 		r.mu.Unlock()
-		r.saveState()
+		_ = r.saveState() //nolint:errcheck // Best-effort persistence
 	}()
 
 	return rc, nil
@@ -187,7 +187,7 @@ func (r *Runner) Stop(hashID string) error {
 	delete(r.running, hashID)
 	r.mu.Unlock()
 
-	r.saveState()
+	_ = r.saveState() //nolint:errcheck // Best-effort persistence
 	return nil
 }
 
@@ -207,7 +207,7 @@ func (r *Runner) StopAll() {
 	r.running = make(map[string]*RunningCommand)
 	r.mu.Unlock()
 
-	r.saveState()
+	_ = r.saveState() //nolint:errcheck // Best-effort persistence
 }
 
 // List returns all running commands.
@@ -275,7 +275,7 @@ func (r *Runner) CleanupStale() int {
 	r.mu.Unlock()
 
 	if cleaned > 0 {
-		r.saveState()
+		_ = r.saveState() //nolint:errcheck // Best-effort persistence
 	}
 	return cleaned
 }

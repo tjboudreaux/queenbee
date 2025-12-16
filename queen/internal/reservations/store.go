@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+
 	"github.com/tjboudreaux/queenbee/queen/internal/store"
 )
 
@@ -284,9 +285,11 @@ func PatternsOverlap(a, b string) bool {
 
 	// Try matching each pattern against the other
 	// This handles cases like "src/*.go" and "src/main.go"
+	//nolint:errcheck // Match only returns error on invalid pattern syntax
 	if matchedA, _ := doublestar.Match(a, b); matchedA {
 		return true
 	}
+	//nolint:errcheck // Match only returns error on invalid pattern syntax
 	if matchedB, _ := doublestar.Match(b, a); matchedB {
 		return true
 	}
@@ -311,6 +314,7 @@ func PatternsOverlap(a, b string) bool {
 
 // pathMatchesPattern checks if a path matches a glob pattern.
 func pathMatchesPattern(path, pattern string) bool {
+	//nolint:errcheck // Match only returns error on invalid pattern syntax
 	matched, _ := doublestar.Match(pattern, path)
 	return matched
 }

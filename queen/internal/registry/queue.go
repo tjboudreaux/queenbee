@@ -58,7 +58,7 @@ func (q *WorkQueue) Enqueue(work QueuedWork) {
 
 	q.items = append(q.items, work)
 	q.sortByPriority()
-	q.saveState()
+	_ = q.saveState() //nolint:errcheck // Best-effort persistence
 }
 
 // Dequeue removes and returns the highest priority work item.
@@ -72,7 +72,7 @@ func (q *WorkQueue) Dequeue() (QueuedWork, bool) {
 
 	work := q.items[0]
 	q.items = q.items[1:]
-	q.saveState()
+	_ = q.saveState() //nolint:errcheck // Best-effort persistence
 
 	return work, true
 }
@@ -97,7 +97,7 @@ func (q *WorkQueue) Remove(agent, command, issueID string) bool {
 	for i, item := range q.items {
 		if item.Agent == agent && item.Command == command && item.IssueID == issueID {
 			q.items = append(q.items[:i], q.items[i+1:]...)
-			q.saveState()
+			_ = q.saveState() //nolint:errcheck // Best-effort persistence
 			return true
 		}
 	}
@@ -140,7 +140,7 @@ func (q *WorkQueue) Clear() {
 	defer q.mu.Unlock()
 
 	q.items = make([]QueuedWork, 0)
-	q.saveState()
+	_ = q.saveState() //nolint:errcheck // Best-effort persistence
 }
 
 // sortByPriority sorts items by priority (lower number = higher priority).

@@ -137,7 +137,7 @@ func (m watchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Sequence(
 				tea.ExitAltScreen,
 				func() tea.Msg {
-					RunMsgTui()
+					_ = RunMsgTui() //nolint:errcheck // Best-effort TUI launch
 					return nil
 				},
 				tea.EnterAltScreen,

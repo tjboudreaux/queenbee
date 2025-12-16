@@ -101,9 +101,9 @@ Deliverables:
 
 	// Step 5: Create actual assignments in the store
 	for _, a := range plan.Assignments {
-		_, err := env.CreateAssignment(a.TaskID, a.DroidName)
-		if err != nil {
-			t.Fatalf("failed to create assignment for %s: %v", a.TaskID, err)
+		_, assignErr := env.CreateAssignment(a.TaskID, a.DroidName)
+		if assignErr != nil {
+			t.Fatalf("failed to create assignment for %s: %v", a.TaskID, assignErr)
 		}
 	}
 
