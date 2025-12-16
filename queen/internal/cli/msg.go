@@ -76,6 +76,13 @@ var msgSentCmd = &cobra.Command{
 	RunE:  runMsgSent,
 }
 
+var msgStatsCmd = &cobra.Command{
+	Use:   "stats",
+	Short: "Show message statistics",
+	Long:  "Display global message statistics across all agents.",
+	RunE:  runMsgStats,
+}
+
 var (
 	msgIssue      string
 	msgSubject    string
@@ -94,6 +101,10 @@ func init() {
 	msgCmd.AddCommand(msgReadCmd)
 	msgCmd.AddCommand(msgThreadCmd)
 	msgCmd.AddCommand(msgSentCmd)
+	msgCmd.AddCommand(msgStatsCmd)
+
+	// stats flags
+	msgStatsCmd.Flags().StringVar(&msgSince, "since", "", "Show stats since time (e.g., '1h', '24h', '2024-01-01')")
 
 	// send flags
 	msgSendCmd.Flags().StringVar(&msgIssue, "issue", "", "Related issue ID")
@@ -418,6 +429,115 @@ func runMsgSent(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func runMsgStats(cmd *cobra.Command, args []string) error {
+	beadsDir, err := beads.FindBeadsDir()
+	if err != nil {
+		return err
+	}
+
+	store, err := messages.NewStore(beadsDir)
+	if err != nil {
+		return err
+	}
+
+	var since time.Time
+	if msgSince != "" {
+		since, err = parseDuration(msgSince)
+		if err != nil {
+			return fmt.Errorf("invalid --since: %w", err)
+		}
+	}
+
+	stats, err := store.GetStats(since)
+	if err != nil {
+		return err
+	}
+
+	if getJSONFlag(cmd) {
+		return json.NewEncoder(os.Stdout).Encode(stats)
+	}
+
+	bold := color.New(color.Bold).SprintFunc()
+	cyan := color.New(color.FgCyan).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+	gray := color.New(color.FgHiBlack).SprintFunc()
+
+	fmt.Printf("%s\n\n", bold("📊 Message Statistics"))
+
+	// Overall stats
+	fmt.Printf("%s\n", bold("Overview"))
+	fmt.Printf("  Total:   %s\n", cyan(fmt.Sprintf("%d", stats.Total)))
+	fmt.Printf("  Unread:  %s\n", yellow(fmt.Sprintf("%d", stats.Unread)))
+	if !since.IsZero() {
+		fmt.Printf("  Since %s:\n", since.Format("2006-01-02 15:04"))
+		fmt.Printf("    New:    %s\n", green(fmt.Sprintf("%d", stats.SinceTotal)))
+		fmt.Printf("    Unread: %s\n", yellow(fmt.Sprintf("%d", stats.SinceUnread)))
+	}
+	fmt.Println()
+
+	// By importance
+	fmt.Printf("%s\n", bold("By Importance"))
+	if v := stats.ByImportance[messages.ImportanceUrgent]; v > 0 {
+		fmt.Printf("  🚨 Urgent:  %s\n", red(fmt.Sprintf("%d", v)))
+	}
+	if v := stats.ByImportance[messages.ImportanceHigh]; v > 0 {
+		fmt.Printf("  ⚠️  High:    %s\n", yellow(fmt.Sprintf("%d", v)))
+	}
+	if v := stats.ByImportance[messages.ImportanceNormal]; v > 0 {
+		fmt.Printf("  📬 Normal:  %s\n", cyan(fmt.Sprintf("%d", v)))
+	}
+	if v := stats.ByImportance[messages.ImportanceLow]; v > 0 {
+		fmt.Printf("  📭 Low:     %s\n", gray(fmt.Sprintf("%d", v)))
+	}
+	fmt.Println()
+
+	// Top receivers
+	fmt.Printf("%s\n", bold("Top Receivers (Inbox)"))
+	receivers := sortedMapEntries(stats.ByAgent)
+	for i, kv := range receivers {
+		if i >= 10 {
+			break
+		}
+		fmt.Printf("  %-25s %s\n", kv.key, cyan(fmt.Sprintf("%d", kv.value)))
+	}
+	fmt.Println()
+
+	// Top senders
+	fmt.Printf("%s\n", bold("Top Senders"))
+	senders := sortedMapEntries(stats.BySender)
+	for i, kv := range senders {
+		if i >= 10 {
+			break
+		}
+		fmt.Printf("  %-25s %s\n", kv.key, green(fmt.Sprintf("%d", kv.value)))
+	}
+
+	return nil
+}
+
+type kvPair struct {
+	key   string
+	value int
+}
+
+func sortedMapEntries(m map[string]int) []kvPair {
+	result := make([]kvPair, 0, len(m))
+	for k, v := range m {
+		result = append(result, kvPair{k, v})
+	}
+	// Sort descending by value
+	for i := 0; i < len(result)-1; i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[j].value > result[i].value {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+	return result
 }
 
 func printMessageSummary(m messages.Message) {

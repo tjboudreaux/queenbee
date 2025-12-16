@@ -518,3 +518,326 @@ func TestStore_GetInbox_Empty(t *testing.T) {
 		t.Errorf("Expected empty inbox, got %d messages", len(msgs))
 	}
 }
+
+// ============================================================================
+// Tests for GetStats
+// ============================================================================
+
+func TestStore_GetStats_Empty(t *testing.T) {
+	store := setupTestStore(t)
+
+	stats, err := store.GetStats(time.Time{})
+	if err != nil {
+		t.Fatalf("GetStats failed: %v", err)
+	}
+
+	if stats.Total != 0 {
+		t.Errorf("Total = %d, want 0", stats.Total)
+	}
+	if stats.Unread != 0 {
+		t.Errorf("Unread = %d, want 0", stats.Unread)
+	}
+}
+
+func TestStore_GetStats_Counts(t *testing.T) {
+	store := setupTestStore(t)
+
+	// Create messages with different importance levels
+	store.Send("alice", "bob", "Normal 1", "", SendOptions{})
+	store.Send("alice", "bob", "Normal 2", "", SendOptions{})
+	store.Send("alice", "charlie", "High", "", SendOptions{Importance: ImportanceHigh})
+	store.Send("alice", "david", "Urgent", "", SendOptions{Importance: ImportanceUrgent})
+	msg5, _ := store.Send("alice", "bob", "Read", "", SendOptions{})
+	store.MarkRead(msg5.ID)
+
+	stats, err := store.GetStats(time.Time{})
+	if err != nil {
+		t.Fatalf("GetStats failed: %v", err)
+	}
+
+	if stats.Total != 5 {
+		t.Errorf("Total = %d, want 5", stats.Total)
+	}
+	if stats.Unread != 4 {
+		t.Errorf("Unread = %d, want 4", stats.Unread)
+	}
+}
+
+func TestStore_GetStats_ByAgent(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "To Bob 1", "", SendOptions{})
+	store.Send("alice", "bob", "To Bob 2", "", SendOptions{})
+	store.Send("alice", "charlie", "To Charlie", "", SendOptions{})
+
+	stats, err := store.GetStats(time.Time{})
+	if err != nil {
+		t.Fatalf("GetStats failed: %v", err)
+	}
+
+	if stats.ByAgent["bob"] != 2 {
+		t.Errorf("ByAgent[bob] = %d, want 2", stats.ByAgent["bob"])
+	}
+	if stats.ByAgent["charlie"] != 1 {
+		t.Errorf("ByAgent[charlie] = %d, want 1", stats.ByAgent["charlie"])
+	}
+}
+
+func TestStore_GetStats_BySender(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "From Alice 1", "", SendOptions{})
+	store.Send("alice", "charlie", "From Alice 2", "", SendOptions{})
+	store.Send("bob", "alice", "From Bob", "", SendOptions{})
+
+	stats, err := store.GetStats(time.Time{})
+	if err != nil {
+		t.Fatalf("GetStats failed: %v", err)
+	}
+
+	if stats.BySender["alice"] != 2 {
+		t.Errorf("BySender[alice] = %d, want 2", stats.BySender["alice"])
+	}
+	if stats.BySender["bob"] != 1 {
+		t.Errorf("BySender[bob] = %d, want 1", stats.BySender["bob"])
+	}
+}
+
+func TestStore_GetStats_ByImportance(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "Normal", "", SendOptions{})
+	store.Send("alice", "bob", "High", "", SendOptions{Importance: ImportanceHigh})
+	store.Send("alice", "bob", "Urgent", "", SendOptions{Importance: ImportanceUrgent})
+	store.Send("alice", "bob", "Low", "", SendOptions{Importance: ImportanceLow})
+
+	stats, err := store.GetStats(time.Time{})
+	if err != nil {
+		t.Fatalf("GetStats failed: %v", err)
+	}
+
+	if stats.ByImportance[ImportanceNormal] != 1 {
+		t.Errorf("ByImportance[normal] = %d, want 1", stats.ByImportance[ImportanceNormal])
+	}
+	if stats.ByImportance[ImportanceHigh] != 1 {
+		t.Errorf("ByImportance[high] = %d, want 1", stats.ByImportance[ImportanceHigh])
+	}
+	if stats.ByImportance[ImportanceUrgent] != 1 {
+		t.Errorf("ByImportance[urgent] = %d, want 1", stats.ByImportance[ImportanceUrgent])
+	}
+	if stats.ByImportance[ImportanceLow] != 1 {
+		t.Errorf("ByImportance[low] = %d, want 1", stats.ByImportance[ImportanceLow])
+	}
+}
+
+func TestStore_GetStats_Since(t *testing.T) {
+	store := setupTestStore(t)
+
+	// Create old message
+	oldMsg, _ := store.Send("alice", "bob", "Old", "", SendOptions{})
+	oldMsg.CreatedAt = time.Now().Add(-2 * time.Hour)
+	store.jsonl.Append(*oldMsg)
+
+	// Create recent messages
+	store.Send("alice", "bob", "New 1", "", SendOptions{})
+	store.Send("alice", "bob", "New 2", "", SendOptions{})
+
+	since := time.Now().Add(-1 * time.Hour)
+	stats, err := store.GetStats(since)
+	if err != nil {
+		t.Fatalf("GetStats failed: %v", err)
+	}
+
+	if stats.Total != 3 {
+		t.Errorf("Total = %d, want 3", stats.Total)
+	}
+	if stats.SinceTotal != 2 {
+		t.Errorf("SinceTotal = %d, want 2", stats.SinceTotal)
+	}
+	if stats.SinceUnread != 2 {
+		t.Errorf("SinceUnread = %d, want 2", stats.SinceUnread)
+	}
+}
+
+func TestStore_GetStats_ExcludesDeleted(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "Keep", "", SendOptions{})
+	msg2, _ := store.Send("alice", "bob", "Delete", "", SendOptions{})
+	store.Delete(msg2.ID)
+
+	stats, err := store.GetStats(time.Time{})
+	if err != nil {
+		t.Fatalf("GetStats failed: %v", err)
+	}
+
+	if stats.Total != 1 {
+		t.Errorf("Total = %d, want 1 (deleted excluded)", stats.Total)
+	}
+}
+
+// ============================================================================
+// Tests for GetAllMessages
+// ============================================================================
+
+func TestStore_GetAllMessages_Empty(t *testing.T) {
+	store := setupTestStore(t)
+
+	msgs, err := store.GetAllMessages(time.Time{}, 100)
+	if err != nil {
+		t.Fatalf("GetAllMessages failed: %v", err)
+	}
+
+	if len(msgs) != 0 {
+		t.Errorf("Expected empty list, got %d messages", len(msgs))
+	}
+}
+
+func TestStore_GetAllMessages_ReturnsAll(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "Msg 1", "", SendOptions{})
+	store.Send("charlie", "david", "Msg 2", "", SendOptions{})
+	store.Send("alice", "charlie", "Msg 3", "", SendOptions{})
+
+	msgs, err := store.GetAllMessages(time.Time{}, 100)
+	if err != nil {
+		t.Fatalf("GetAllMessages failed: %v", err)
+	}
+
+	if len(msgs) != 3 {
+		t.Errorf("Expected 3 messages, got %d", len(msgs))
+	}
+}
+
+func TestStore_GetAllMessages_SortedNewestFirst(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "First", "", SendOptions{})
+	time.Sleep(10 * time.Millisecond)
+	store.Send("alice", "bob", "Second", "", SendOptions{})
+	time.Sleep(10 * time.Millisecond)
+	store.Send("alice", "bob", "Third", "", SendOptions{})
+
+	msgs, err := store.GetAllMessages(time.Time{}, 100)
+	if err != nil {
+		t.Fatalf("GetAllMessages failed: %v", err)
+	}
+
+	if msgs[0].Subject != "Third" {
+		t.Errorf("First message should be newest, got %s", msgs[0].Subject)
+	}
+	if msgs[2].Subject != "First" {
+		t.Errorf("Last message should be oldest, got %s", msgs[2].Subject)
+	}
+}
+
+func TestStore_GetAllMessages_Since(t *testing.T) {
+	store := setupTestStore(t)
+
+	// Create old message
+	oldMsg, _ := store.Send("alice", "bob", "Old", "", SendOptions{})
+	oldMsg.CreatedAt = time.Now().Add(-2 * time.Hour)
+	store.jsonl.Append(*oldMsg)
+
+	// Create recent message
+	store.Send("alice", "bob", "New", "", SendOptions{})
+
+	since := time.Now().Add(-1 * time.Hour)
+	msgs, err := store.GetAllMessages(since, 100)
+	if err != nil {
+		t.Fatalf("GetAllMessages failed: %v", err)
+	}
+
+	if len(msgs) != 1 {
+		t.Errorf("Expected 1 recent message, got %d", len(msgs))
+	}
+	if msgs[0].Subject != "New" {
+		t.Errorf("Expected new message, got %s", msgs[0].Subject)
+	}
+}
+
+func TestStore_GetAllMessages_Limit(t *testing.T) {
+	store := setupTestStore(t)
+
+	for i := 0; i < 10; i++ {
+		store.Send("alice", "bob", "Message", "", SendOptions{})
+	}
+
+	msgs, err := store.GetAllMessages(time.Time{}, 5)
+	if err != nil {
+		t.Fatalf("GetAllMessages failed: %v", err)
+	}
+
+	if len(msgs) != 5 {
+		t.Errorf("Expected 5 messages (limit), got %d", len(msgs))
+	}
+}
+
+func TestStore_GetAllMessages_ExcludesDeleted(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "Keep", "", SendOptions{})
+	msg2, _ := store.Send("alice", "bob", "Delete", "", SendOptions{})
+	store.Delete(msg2.ID)
+
+	msgs, err := store.GetAllMessages(time.Time{}, 100)
+	if err != nil {
+		t.Fatalf("GetAllMessages failed: %v", err)
+	}
+
+	if len(msgs) != 1 {
+		t.Errorf("Expected 1 message (deleted excluded), got %d", len(msgs))
+	}
+}
+
+// ============================================================================
+// Tests for GetAgentInboxCount
+// ============================================================================
+
+func TestStore_GetAgentInboxCount(t *testing.T) {
+	store := setupTestStore(t)
+
+	store.Send("alice", "bob", "Msg 1", "", SendOptions{})
+	store.Send("alice", "bob", "Msg 2", "", SendOptions{})
+	store.Send("alice", "charlie", "Msg 3", "", SendOptions{})
+
+	count, err := store.GetAgentInboxCount("bob", false)
+	if err != nil {
+		t.Fatalf("GetAgentInboxCount failed: %v", err)
+	}
+
+	if count != 2 {
+		t.Errorf("Count = %d, want 2", count)
+	}
+}
+
+func TestStore_GetAgentInboxCount_UnreadOnly(t *testing.T) {
+	store := setupTestStore(t)
+
+	msg1, _ := store.Send("alice", "bob", "Read", "", SendOptions{})
+	store.Send("alice", "bob", "Unread", "", SendOptions{})
+	store.MarkRead(msg1.ID)
+
+	count, err := store.GetAgentInboxCount("bob", true)
+	if err != nil {
+		t.Fatalf("GetAgentInboxCount failed: %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("Unread count = %d, want 1", count)
+	}
+}
+
+func TestStore_GetAgentInboxCount_Empty(t *testing.T) {
+	store := setupTestStore(t)
+
+	count, err := store.GetAgentInboxCount("nobody", false)
+	if err != nil {
+		t.Fatalf("GetAgentInboxCount failed: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Count = %d, want 0", count)
+	}
+}

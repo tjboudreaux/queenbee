@@ -277,3 +277,104 @@ func sortMessagesByDate(msgs []Message, descending bool) {
 		}
 	}
 }
+
+// Stats holds global message statistics.
+type Stats struct {
+	Total       int            `json:"total"`
+	Unread      int            `json:"unread"`
+	ByAgent     map[string]int `json:"by_agent"`      // inbox count per agent
+	BySender    map[string]int `json:"by_sender"`     // sent count per agent
+	ByImportance map[string]int `json:"by_importance"`
+	Since       time.Time      `json:"since,omitempty"`
+	SinceTotal  int            `json:"since_total,omitempty"`
+	SinceUnread int            `json:"since_unread,omitempty"`
+}
+
+// GetStats returns global message statistics.
+func (s *Store) GetStats(since time.Time) (*Stats, error) {
+	all, err := s.jsonl.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge by ID (last wins)
+	byID := make(map[string]*Message)
+	for i := range all {
+		msg := all[i]
+		if msg.Deleted {
+			delete(byID, msg.ID)
+			continue
+		}
+		byID[msg.ID] = &msg
+	}
+
+	stats := &Stats{
+		ByAgent:      make(map[string]int),
+		BySender:     make(map[string]int),
+		ByImportance: make(map[string]int),
+		Since:        since,
+	}
+
+	for _, msg := range byID {
+		stats.Total++
+		if !msg.Read {
+			stats.Unread++
+		}
+		stats.ByAgent[msg.To]++
+		stats.BySender[msg.From]++
+		stats.ByImportance[msg.Importance]++
+
+		if !since.IsZero() && msg.CreatedAt.After(since) {
+			stats.SinceTotal++
+			if !msg.Read {
+				stats.SinceUnread++
+			}
+		}
+	}
+
+	return stats, nil
+}
+
+// GetAllMessages returns all non-deleted messages, optionally filtered by since time.
+func (s *Store) GetAllMessages(since time.Time, limit int) ([]Message, error) {
+	all, err := s.jsonl.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge by ID (last wins)
+	byID := make(map[string]*Message)
+	for i := range all {
+		msg := all[i]
+		if msg.Deleted {
+			delete(byID, msg.ID)
+			continue
+		}
+		byID[msg.ID] = &msg
+	}
+
+	var result []Message
+	for _, msg := range byID {
+		if !since.IsZero() && msg.CreatedAt.Before(since) {
+			continue
+		}
+		result = append(result, *msg)
+	}
+
+	sortMessagesByDate(result, true)
+
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+
+	return result, nil
+}
+
+// GetAgentInboxCount returns the count of messages in an agent's inbox.
+func (s *Store) GetAgentInboxCount(agent string, unreadOnly bool) (int, error) {
+	msgs, err := s.GetInbox(agent, InboxOptions{UnreadOnly: unreadOnly})
+	if err != nil {
+		return 0, err
+	}
+	return len(msgs), nil
+}

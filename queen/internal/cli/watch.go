@@ -1,20 +1,16 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
-	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/daemon"
 	"github.com/tjboudreaux/queenbee/queen/internal/messages"
 	"github.com/tjboudreaux/queenbee/queen/internal/registry"
@@ -72,10 +68,12 @@ type watchMetrics struct {
 	queueP2      int
 	queueP3      int
 
-	// Messages (last 5 min)
-	msgsReceived int
-	msgsSent     int
-	msgsUrgent   int
+	// Messages (global stats)
+	msgsTotal     int
+	msgsUnread    int
+	msgsSince     int // messages in last 5 min
+	msgsUrgent    int
+	msgsHigh      int
 
 	// Running agent details
 	runningAgents []runningAgentInfo
@@ -94,7 +92,7 @@ var watchCmd = &cobra.Command{
 	Use:   "watch",
 	Short: "Live status dashboard",
 	Long:  "Display a live-updating status dashboard with issues, agents, queue, and messages.",
-	RunE:  runWatch,
+	RunE:  runWatchCmd,
 }
 
 var (
@@ -106,47 +104,8 @@ func init() {
 	watchCmd.Flags().DurationVarP(&watchInterval, "interval", "i", 5*time.Second, "Refresh interval (e.g., 5s, 10s)")
 }
 
-func runWatch(cmd *cobra.Command, args []string) error {
-	beadsDir, err := beads.FindBeadsDir()
-	if err != nil {
-		return fmt.Errorf("finding .beads directory: %w", err)
-	}
-
-	// Set up signal handling
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// Hide cursor and clear screen
-	fmt.Print(cursorHide)
-	fmt.Print(clearScreen)
-	defer fmt.Print(cursorShow)
-
-	// Track previous metrics for delta calculation
-	var prev *watchMetrics
-
-	ticker := time.NewTicker(watchInterval)
-	defer ticker.Stop()
-
-	// Initial render
-	current := collectMetrics(beadsDir)
-	renderDashboard(current, prev, beadsDir)
-	prev = current
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-sigChan:
-			return nil
-		case <-ticker.C:
-			current = collectMetrics(beadsDir)
-			renderDashboard(current, prev, beadsDir)
-			prev = current
-		}
-	}
+func runWatchCmd(cmd *cobra.Command, args []string) error {
+	return RunWatch(watchInterval)
 }
 
 func collectMetrics(beadsDir string) *watchMetrics {
@@ -343,23 +302,17 @@ func collectMessageStats(m *watchMetrics, beadsDir string) {
 
 	since := time.Now().Add(-5 * time.Minute)
 
-	// Count messages in last 5 minutes
-	// This is a simplification - we'd need more store methods for accurate counts
-	// For now, check queen's inbox and sent
-	inbox, _ := store.GetInbox("queen", messages.InboxOptions{Since: since})
-	m.msgsReceived = len(inbox)
-
-	sent, _ := store.GetSent("queen", 100)
-	for _, msg := range sent {
-		if msg.CreatedAt.After(since) {
-			m.msgsSent++
-		}
-		if msg.Importance == "urgent" || msg.Importance == "high" {
-			if msg.CreatedAt.After(since) {
-				m.msgsUrgent++
-			}
-		}
+	// Get global stats
+	stats, err := store.GetStats(since)
+	if err != nil {
+		return
 	}
+
+	m.msgsTotal = stats.Total
+	m.msgsUnread = stats.Unread
+	m.msgsSince = stats.SinceTotal
+	m.msgsUrgent = stats.ByImportance[messages.ImportanceUrgent]
+	m.msgsHigh = stats.ByImportance[messages.ImportanceHigh]
 }
 
 func getIssueTitle(workDir, issueID string) string {
@@ -437,15 +390,23 @@ func renderDashboard(current, prev *watchMetrics, beadsDir string) {
 		fmt.Printf("%s(empty)%s\n", colorGray, colorReset)
 	}
 
-	// MESSAGES - compact powerline row
-	fmt.Printf("%s💬 MSGS%s   ↓%s%d%s ↑%s%d%s%s",
+	// MESSAGES - compact powerline row with global stats
+	fmt.Printf("%s💬 MSGS%s   %s%d%s total%s%s%d%s unread%s+%s%d%s (5m)%s",
 		colorBold, colorReset,
-		colorGreen, current.msgsReceived, colorReset,
-		colorBlue, current.msgsSent, colorReset, sep)
-	if current.msgsUrgent > 0 {
-		fmt.Printf("🚨 %s%d%s urgent\n", colorRed+colorBold, current.msgsUrgent, colorReset)
+		colorWhite, current.msgsTotal, colorReset, sep,
+		colorYellow, current.msgsUnread, colorReset, sep,
+		colorGreen, current.msgsSince, colorReset, sep)
+	if current.msgsUrgent > 0 || current.msgsHigh > 0 {
+		parts := []string{}
+		if current.msgsUrgent > 0 {
+			parts = append(parts, fmt.Sprintf("🚨%s%d%s", colorRed+colorBold, current.msgsUrgent, colorReset))
+		}
+		if current.msgsHigh > 0 {
+			parts = append(parts, fmt.Sprintf("⚠️%s%d%s", colorYellow, current.msgsHigh, colorReset))
+		}
+		fmt.Printf("%s\n", strings.Join(parts, " "))
 	} else {
-		fmt.Printf("%s0 urgent%s\n", colorGray, colorReset)
+		fmt.Printf("%s✓%s\n", colorGreen, colorReset)
 	}
 
 	// Footer line
