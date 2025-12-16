@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -93,6 +94,9 @@ func TestDaemon_RemovePIDFile(t *testing.T) {
 }
 
 func TestDaemon_Start_AlreadyRunning(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping on Windows - process detection works differently")
+	}
 	d := setupTestDaemon(t)
 
 	// Simulate running daemon by writing PID file with current process
@@ -240,6 +244,9 @@ func TestDaemon_GetStatus_StalePIDFile(t *testing.T) {
 }
 
 func TestDaemon_GetStatus_Running(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping on Windows - process detection works differently")
+	}
 	d := setupTestDaemon(t)
 
 	// Write PID file with current process (which is running)

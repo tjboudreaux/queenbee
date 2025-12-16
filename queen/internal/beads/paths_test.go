@@ -112,8 +112,8 @@ func TestFindBeadsDir_FromCurrentDir(t *testing.T) {
 }
 
 func TestFindFactoryDir(t *testing.T) {
-	beadsDir := "/some/repo/.beads"
-	expected := "/some/repo/.factory"
+	beadsDir := filepath.Join("some", "repo", ".beads")
+	expected := filepath.Join("some", "repo", ".factory")
 
 	result := FindFactoryDir(beadsDir)
 	if result != expected {
@@ -122,8 +122,8 @@ func TestFindFactoryDir(t *testing.T) {
 }
 
 func TestFindRepoRoot(t *testing.T) {
-	beadsDir := "/some/repo/.beads"
-	expected := "/some/repo"
+	beadsDir := filepath.Join("some", "repo", ".beads")
+	expected := filepath.Join("some", "repo")
 
 	result := FindRepoRoot(beadsDir)
 	if result != expected {
