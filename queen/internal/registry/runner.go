@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -111,8 +110,8 @@ func (r *Runner) Run(ctx context.Context, agentName, commandName, issueID string
 		fmt.Sprintf("QUEEN_COMMAND=%s", commandName),
 	)
 
-	// Set up process group for cleanup
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Set up process group for cleanup (platform-specific)
+	setProcGroup(cmd)
 
 	// Create log file for output
 	logDir := filepath.Join(r.beadsDir, "queen_logs")
@@ -173,15 +172,8 @@ func (r *Runner) Stop(hashID string) error {
 	}
 	r.mu.Unlock()
 
-	if rc.Cmd != nil && rc.Cmd.Process != nil {
-		// Kill the process group
-		pgid, err := syscall.Getpgid(rc.Cmd.Process.Pid)
-		if err == nil {
-			syscall.Kill(-pgid, syscall.SIGTERM)
-		} else {
-			rc.Cmd.Process.Kill()
-		}
-	}
+	// Kill the process group (platform-specific)
+	killProcessGroup(rc.Cmd)
 
 	r.mu.Lock()
 	delete(r.running, hashID)
@@ -195,14 +187,7 @@ func (r *Runner) Stop(hashID string) error {
 func (r *Runner) StopAll() {
 	r.mu.Lock()
 	for _, rc := range r.running {
-		if rc.Cmd != nil && rc.Cmd.Process != nil {
-			pgid, err := syscall.Getpgid(rc.Cmd.Process.Pid)
-			if err == nil {
-				syscall.Kill(-pgid, syscall.SIGTERM)
-			} else {
-				rc.Cmd.Process.Kill()
-			}
-		}
+		killProcessGroup(rc.Cmd)
 	}
 	r.running = make(map[string]*RunningCommand)
 	r.mu.Unlock()
@@ -266,8 +251,8 @@ func (r *Runner) CleanupStale() int {
 			continue
 		}
 
-		// On Unix, FindProcess always succeeds, so send signal 0 to check
-		if err := process.Signal(syscall.Signal(0)); err != nil {
+		// Check if process is still running (platform-specific)
+		if !isProcessRunning(process) {
 			delete(r.running, hashID)
 			cleaned++
 		}
@@ -328,7 +313,7 @@ func (r *Runner) loadState() {
 		if err != nil {
 			continue
 		}
-		if err := process.Signal(syscall.Signal(0)); err == nil {
+		if isProcessRunning(process) {
 			r.running[hashID] = rc
 		}
 	}
