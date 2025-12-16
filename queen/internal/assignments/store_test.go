@@ -33,8 +33,8 @@ func TestStore_Assign(t *testing.T) {
 	if assignment.IssueID != "qb-001" {
 		t.Errorf("IssueID = %q, want %q", assignment.IssueID, "qb-001")
 	}
-	if assignment.Droid != "alice" {
-		t.Errorf("Droid = %q, want %q", assignment.Droid, "alice")
+	if assignment.Agent != "alice" {
+		t.Errorf("Agent = %q, want %q", assignment.Agent, "alice")
 	}
 	if assignment.AssignedBy != "bob" {
 		t.Errorf("AssignedBy = %q, want %q", assignment.AssignedBy, "bob")
@@ -69,11 +69,11 @@ func TestStore_Assign_Reassign(t *testing.T) {
 	}
 
 	// Check new assignment
-	if second.Droid != "bob" {
-		t.Errorf("New droid = %q, want %q", second.Droid, "bob")
+	if second.Agent != "bob" {
+		t.Errorf("New agent = %q, want %q", second.Agent, "bob")
 	}
-	if second.PreviousDroid != "alice" {
-		t.Errorf("PreviousDroid = %q, want %q", second.PreviousDroid, "alice")
+	if second.PreviousAgent != "alice" {
+		t.Errorf("PreviousAgent = %q, want %q", second.PreviousAgent, "alice")
 	}
 
 	// Check original was marked reassigned
@@ -83,7 +83,7 @@ func TestStore_Assign_Reassign(t *testing.T) {
 	}
 }
 
-func TestStore_Assign_SameDroid(t *testing.T) {
+func TestStore_Assign_SameAgent(t *testing.T) {
 	store := setupTestStore(t)
 
 	first, _ := store.Assign("qb-001", "alice", "queen", AssignOptions{})
@@ -91,7 +91,7 @@ func TestStore_Assign_SameDroid(t *testing.T) {
 
 	// Should return the existing assignment
 	if first.ID != second.ID {
-		t.Errorf("Assigning same droid should return existing assignment")
+		t.Errorf("Assigning same agent should return existing assignment")
 	}
 }
 
@@ -103,8 +103,8 @@ func TestStore_Claim(t *testing.T) {
 		t.Fatalf("Claim failed: %v", err)
 	}
 
-	if assignment.Droid != "alice" {
-		t.Errorf("Droid = %q, want %q", assignment.Droid, "alice")
+	if assignment.Agent != "alice" {
+		t.Errorf("Agent = %q, want %q", assignment.Agent, "alice")
 	}
 	if assignment.AssignedBy != "alice" {
 		t.Errorf("AssignedBy = %q, want %q (self-assigned)", assignment.AssignedBy, "alice")
@@ -209,8 +209,8 @@ func TestStore_GetActiveForIssue(t *testing.T) {
 		t.Fatalf("GetActiveForIssue failed: %v", err)
 	}
 
-	if found.Droid != "alice" {
-		t.Errorf("Droid = %q, want %q", found.Droid, "alice")
+	if found.Agent != "alice" {
+		t.Errorf("Agent = %q, want %q", found.Agent, "alice")
 	}
 }
 

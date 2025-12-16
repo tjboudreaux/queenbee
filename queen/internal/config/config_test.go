@@ -61,12 +61,20 @@ func TestSaveConfig_Load(t *testing.T) {
 func TestConfig_Set(t *testing.T) {
 	cfg := &Config{}
 
-	// Set droid
+	// Set agent (using new key)
+	if err := cfg.Set("agent", "my-agent"); err != nil {
+		t.Fatalf("Set agent failed: %v", err)
+	}
+	if cfg.Agent != "my-agent" {
+		t.Errorf("Agent = %q, want %q", cfg.Agent, "my-agent")
+	}
+
+	// Set agent via deprecated droid key (backward compat)
 	if err := cfg.Set("droid", "my-droid"); err != nil {
 		t.Fatalf("Set droid failed: %v", err)
 	}
-	if cfg.Droid != "my-droid" {
-		t.Errorf("Droid = %q, want %q", cfg.Droid, "my-droid")
+	if cfg.Agent != "my-droid" {
+		t.Errorf("Agent = %q, want %q (set via droid key)", cfg.Agent, "my-droid")
 	}
 
 	// Set TTL

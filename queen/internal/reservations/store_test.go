@@ -34,8 +34,8 @@ func TestStore_Reserve(t *testing.T) {
 	if res.ID == "" {
 		t.Error("Expected reservation to have ID")
 	}
-	if res.Droid != "alice" {
-		t.Errorf("Droid = %q, want %q", res.Droid, "alice")
+	if res.Agent != "alice" {
+		t.Errorf("Agent = %q, want %q", res.Agent, "alice")
 	}
 	if res.Pattern != "src/**/*.go" {
 		t.Errorf("Pattern = %q, want %q", res.Pattern, "src/**/*.go")
@@ -79,8 +79,8 @@ func TestStore_Reserve_Conflict(t *testing.T) {
 	if len(conflicts) != 1 {
 		t.Fatalf("Expected 1 conflict, got %d", len(conflicts))
 	}
-	if conflicts[0].Droid != "alice" {
-		t.Errorf("Conflict droid = %q, want %q", conflicts[0].Droid, "alice")
+	if conflicts[0].Agent != "alice" {
+		t.Errorf("Conflict agent = %q, want %q", conflicts[0].Agent, "alice")
 	}
 }
 

@@ -172,8 +172,8 @@ func TestWorkflow_AssignmentLifecycle(t *testing.T) {
 					if len(active) != 1 {
 						return fmt.Errorf("expected 1 active assignment, got %d", len(active))
 					}
-					if active[0].Droid != "frontend-engineer" {
-						return fmt.Errorf("expected frontend-engineer, got %s", active[0].Droid)
+					if active[0].Agent != "frontend-engineer" {
+						return fmt.Errorf("expected frontend-engineer, got %s", active[0].Agent)
 					}
 					return nil
 				},

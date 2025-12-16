@@ -140,7 +140,7 @@ func TestSuggestResolutions(t *testing.T) {
 	conflict := ConflictInfo{
 		ReservationA: Reservation{
 			ID:        "qr-001",
-			Droid:     "alice",
+			Agent:     "alice",
 			Pattern:   "src/**",
 			CreatedAt: now,
 			ExpiresAt: now.Add(2 * time.Hour),
@@ -148,7 +148,7 @@ func TestSuggestResolutions(t *testing.T) {
 		},
 		ReservationB: Reservation{
 			ID:        "qr-002",
-			Droid:     "bob",
+			Agent:     "bob",
 			Pattern:   "src/**",
 			CreatedAt: now.Add(time.Minute), // Bob reserved later
 			ExpiresAt: now.Add(2 * time.Hour),
@@ -182,30 +182,30 @@ func TestSuggestResolutions(t *testing.T) {
 
 func TestDetermineWinnerLoser_ByTime(t *testing.T) {
 	now := time.Now()
-	earlier := Reservation{Droid: "alice", CreatedAt: now}
-	later := Reservation{Droid: "bob", CreatedAt: now.Add(time.Minute)}
+	earlier := Reservation{Agent: "alice", CreatedAt: now}
+	later := Reservation{Agent: "bob", CreatedAt: now.Add(time.Minute)}
 
 	winner, loser := determineWinnerLoser(earlier, later)
-	if winner.Droid != "alice" {
-		t.Errorf("Winner should be alice (earlier), got %s", winner.Droid)
+	if getAgent(winner) != "alice" {
+		t.Errorf("Winner should be alice (earlier), got %s", getAgent(winner))
 	}
-	if loser.Droid != "bob" {
-		t.Errorf("Loser should be bob (later), got %s", loser.Droid)
+	if getAgent(loser) != "bob" {
+		t.Errorf("Loser should be bob (later), got %s", getAgent(loser))
 	}
 }
 
 func TestDetermineWinnerLoser_SameTime(t *testing.T) {
 	now := time.Now()
-	a := Reservation{Droid: "alice", CreatedAt: now}
-	b := Reservation{Droid: "bob", CreatedAt: now}
+	a := Reservation{Agent: "alice", CreatedAt: now}
+	b := Reservation{Agent: "bob", CreatedAt: now}
 
 	winner, loser := determineWinnerLoser(a, b)
 	// Lexically smaller wins
-	if winner.Droid != "alice" {
-		t.Errorf("Winner should be alice (lexically smaller), got %s", winner.Droid)
+	if getAgent(winner) != "alice" {
+		t.Errorf("Winner should be alice (lexically smaller), got %s", getAgent(winner))
 	}
-	if loser.Droid != "bob" {
-		t.Errorf("Loser should be bob, got %s", loser.Droid)
+	if getAgent(loser) != "bob" {
+		t.Errorf("Loser should be bob, got %s", getAgent(loser))
 	}
 }
 
@@ -263,12 +263,12 @@ func findSubstring(s, substr string) bool {
 
 func TestDetermineWinner(t *testing.T) {
 	now := time.Now()
-	a := Reservation{Droid: "alice", CreatedAt: now}
-	b := Reservation{Droid: "bob", CreatedAt: now.Add(time.Minute)}
+	a := Reservation{Agent: "alice", CreatedAt: now}
+	b := Reservation{Agent: "bob", CreatedAt: now.Add(time.Minute)}
 
 	winner := determineWinner(a, b)
-	if winner.Droid != "alice" {
-		t.Errorf("Winner should be alice, got %s", winner.Droid)
+	if getAgent(winner) != "alice" {
+		t.Errorf("Winner should be alice, got %s", getAgent(winner))
 	}
 }
 
@@ -378,7 +378,7 @@ func TestSuggestResolutions_ExpiredReservation(t *testing.T) {
 	conflict := ConflictInfo{
 		ReservationA: Reservation{
 			ID:        "qr-001",
-			Droid:     "alice",
+			Agent:     "alice",
 			Pattern:   "src/**",
 			CreatedAt: now.Add(-3 * time.Hour),
 			ExpiresAt: now.Add(-1 * time.Hour), // Already expired
@@ -386,7 +386,7 @@ func TestSuggestResolutions_ExpiredReservation(t *testing.T) {
 		},
 		ReservationB: Reservation{
 			ID:        "qr-002",
-			Droid:     "bob",
+			Agent:     "bob",
 			Pattern:   "src/**",
 			CreatedAt: now,
 			ExpiresAt: now.Add(2 * time.Hour),
