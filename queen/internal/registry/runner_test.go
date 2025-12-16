@@ -8,8 +8,20 @@ import (
 	"time"
 )
 
-func setupTestRegistry(t *testing.T) (*Registry, string) {
+func setupTestRegistry(t *testing.T) (*Registry, string, string) {
 	dir := t.TempDir()
+
+	// Create beads dir to avoid issues with runner creating it
+	beadsDir := filepath.Join(dir, ".beads")
+	if err := os.MkdirAll(beadsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-create queen_logs directory so it's tracked by TempDir
+	logDir := filepath.Join(beadsDir, "queen_logs")
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	content := `
 version: 1
@@ -43,13 +55,16 @@ agents:
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	return reg, dir
+	return reg, beadsDir, dir
 }
 
 func TestRunnerCanRun(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	reg, beadsDir, workDir := setupTestRegistry(t)
+	runner := NewRunner(reg, beadsDir, workDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond) // Allow file handles to close
+	}()
 
 	// Should be able to run initially
 	canRun, reason := runner.CanRun("test-agent", "work_issue", "gb-123")
@@ -81,9 +96,12 @@ func TestRunnerCanRun(t *testing.T) {
 }
 
 func TestRunnerMaxConcurrent(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	reg, beadsDir, workDir := setupTestRegistry(t)
+	runner := NewRunner(reg, beadsDir, workDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond) // Allow file handles to close
+	}()
 
 	ctx := context.Background()
 
@@ -116,9 +134,12 @@ func TestRunnerMaxConcurrent(t *testing.T) {
 }
 
 func TestRunnerMaxAgents(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	reg, beadsDir, workDir := setupTestRegistry(t)
+	runner := NewRunner(reg, beadsDir, workDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond)
+	}()
 
 	ctx := context.Background()
 
@@ -147,9 +168,12 @@ func TestRunnerMaxAgents(t *testing.T) {
 }
 
 func TestRunnerList(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	reg, beadsDir, workDir := setupTestRegistry(t)
+	runner := NewRunner(reg, beadsDir, workDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond)
+	}()
 
 	ctx := context.Background()
 
@@ -170,9 +194,12 @@ func TestRunnerList(t *testing.T) {
 }
 
 func TestRunnerStats(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	reg, beadsDir, workDir := setupTestRegistry(t)
+	runner := NewRunner(reg, beadsDir, workDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond)
+	}()
 
 	ctx := context.Background()
 
@@ -197,9 +224,12 @@ func TestRunnerStats(t *testing.T) {
 }
 
 func TestRunnerIsRunning(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	reg, beadsDir, workDir := setupTestRegistry(t)
+	runner := NewRunner(reg, beadsDir, workDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond)
+	}()
 
 	ctx := context.Background()
 
@@ -223,9 +253,12 @@ func TestRunnerIsRunning(t *testing.T) {
 }
 
 func TestRunnerStop(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	reg, beadsDir, workDir := setupTestRegistry(t)
+	runner := NewRunner(reg, beadsDir, workDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond)
+	}()
 
 	ctx := context.Background()
 
@@ -250,7 +283,7 @@ func TestRunnerStop(t *testing.T) {
 }
 
 func TestRunnerCompletionCleanup(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
+	reg, beadsDir, _ := setupTestRegistry(t)
 
 	// Use a very short command
 	reg.Agents["test-agent"] = Agent{
@@ -260,8 +293,11 @@ func TestRunnerCompletionCleanup(t *testing.T) {
 		},
 	}
 
-	runner := NewRunner(reg, dir, dir)
-	defer runner.StopAll()
+	runner := NewRunner(reg, beadsDir, beadsDir)
+	defer func() {
+		runner.StopAll()
+		time.Sleep(100 * time.Millisecond)
+	}()
 
 	ctx := context.Background()
 
@@ -280,7 +316,7 @@ func TestRunnerCompletionCleanup(t *testing.T) {
 }
 
 func TestRunnerStatePersistence(t *testing.T) {
-	reg, dir := setupTestRegistry(t)
+	reg, beadsDir, _ := setupTestRegistry(t)
 
 	// Use a longer-running command
 	reg.Agents["test-agent"] = Agent{
@@ -290,7 +326,7 @@ func TestRunnerStatePersistence(t *testing.T) {
 		},
 	}
 
-	runner := NewRunner(reg, dir, dir)
+	runner := NewRunner(reg, beadsDir, beadsDir)
 	ctx := context.Background()
 
 	rc, err := runner.Run(ctx, "test-agent", "work_issue", "gb-123")
@@ -299,13 +335,13 @@ func TestRunnerStatePersistence(t *testing.T) {
 	}
 
 	// Check state file exists
-	stateFile := filepath.Join(dir, "queen_runner.json")
+	stateFile := filepath.Join(beadsDir, "queen_runner.json")
 	if _, err := os.Stat(stateFile); os.IsNotExist(err) {
 		t.Error("state file should exist")
 	}
 
 	// Create new runner (simulates restart)
-	runner2 := NewRunner(reg, dir, dir)
+	runner2 := NewRunner(reg, beadsDir, beadsDir)
 
 	// Should recognize the running process
 	if !runner2.IsRunning("test-agent", "work_issue", "gb-123") {
@@ -315,4 +351,5 @@ func TestRunnerStatePersistence(t *testing.T) {
 	// Cleanup
 	runner.Stop(rc.HashID)
 	runner2.StopAll()
+	time.Sleep(100 * time.Millisecond)
 }
