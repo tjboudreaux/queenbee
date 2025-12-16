@@ -1,3 +1,9 @@
+## [1.0.2](https://github.com/tjboudreaux/queenbee/compare/v1.0.1...v1.0.2) (2025-12-16)
+
+### Bug Fixes
+
+* **ci:** disable homebrew in goreleaser until tap is set up ([49efd08](https://github.com/tjboudreaux/queenbee/commit/49efd0878c0dbe53ba386c25d8a992fe4a076f15))
+
 ## [1.0.1](https://github.com/tjboudreaux/queenbee/compare/v1.0.0...v1.0.1) (2025-12-16)
 
 ### Bug Fixes
