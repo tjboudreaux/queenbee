@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/tjboudreaux/queenbee/compare/v1.0.0...v1.0.1) (2025-12-16)
+
+### Bug Fixes
+
+* **ci:** run goreleaser after semantic-release creates a tag ([2dd72fa](https://github.com/tjboudreaux/queenbee/commit/2dd72faf94ffcd61a9f477579fcea80abe3a11cc))
+
 ## 1.0.0 (2025-12-16)
 
 ### Features
