@@ -2,9 +2,9 @@
 
 # QueenBee
 
-**Unified AI Agent Orchestration for Factory Droids**
+**Unified AI Agent Orchestration for Factory Agents**
 
-QueenBee is a CLI-first orchestration layer that extends [Beads](https://github.com/jeffrydegrande/beads) with multi-agent coordination capabilities. It replaces MCP-based Agent Mail with git-backed messaging, automated task assignment via a Queen droid, and a unified TUI for observing all agent activity.
+QueenBee is a CLI-first orchestration layer that extends [Beads](https://github.com/jeffrydegrande/beads) with multi-agent coordination capabilities. It replaces MCP-based Agent Mail with git-backed messaging, automated task assignment via the Queen agent, and a unified TUI for observing all agent activity.
 
 ## Why QueenBee?
 
@@ -25,7 +25,7 @@ QueenBee provides:
 |---------|------------|----------|
 | **Messaging** | Separate MCP server | Beads extension (`bd msg`) |
 | **File Reservations** | HTTP API | Beads extension (`bd reserve`) |
-| **Task Assignment** | Manual | Automated (Queen droid) |
+| **Task Assignment** | Manual | Automated (Queen agent) |
 | **Persistence** | SQLite + Git (dual) | Git-only (JSONL) |
 | **TUI** | Separate tool | Unified with Beads (`bv`) |
 | **Worktree Support** | Per-worktree servers | Shared DB, multi-worktree view |
@@ -40,11 +40,11 @@ QueenBee provides:
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            QUEEN DROID                                       │
-│   Factory custom droid (Opus) running via `droid exec --headless`           │
+│                            QUEEN AGENT                                       │
+│   Factory custom agent (Opus) running via `droid exec --headless`           │
 │   - Monitors .beads/ for new issues and status changes                      │
 │   - Decomposes epics into tasks with dependencies                           │
-│   - Assigns work to specialist droids based on skills                       │
+│   - Assigns work to specialist agents based on skills                       │
 │   - Resolves conflicts and re-routes blocked work                           │
 │   - Escalates to human when confidence is low                               │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -73,15 +73,15 @@ QueenBee provides:
 
 ## Core Concepts
 
-### 1. Droids as Identity
+### 1. Agents as Identity
 
-Agent identities come from Factory's `.factory/droids/` directory. Each droid has:
+Agent identities come from Factory's `.factory/droids/` directory. Each agent has:
 - A name (e.g., `ui-engineer`, `queen`)
 - A model (e.g., `claude-opus-4-5-20251101`)
 - Skills and capabilities
 - Autonomy level
 
-No more random adjective+noun names like "BlueMountain" - droids are the identity system.
+No more random adjective+noun names like "BlueMountain" - agents are the identity system.
 
 ### 2. Git-Backed Everything
 
@@ -92,7 +92,7 @@ All state lives in `.beads/` as JSONL files:
 
 ### 3. Queen Orchestration
 
-The Queen droid runs as a background process:
+The Queen agent runs as a background process:
 ```bash
 # Start queen (daemon mode)
 queen start
@@ -103,7 +103,7 @@ droid exec queen "Process inbox and assign ready work"
 
 Queen responsibilities:
 - **Decomposition** - Break epics into tasks with proper dependencies
-- **Assignment** - Match tasks to droids based on skills and availability
+- **Assignment** - Match tasks to agents based on skills and availability
 - **Conflict Resolution** - Handle overlapping file reservations
 - **Escalation** - Flag decisions requiring human input
 
@@ -139,12 +139,12 @@ bd sync                    # Sync with git
 ### Queen Extensions
 ```bash
 # Messaging
-bd msg send <to-droid> "message"     # Send message
+bd msg send <to-agent> "message"     # Send message
 bd msg inbox                          # View inbox
 bd msg thread <issue-id>              # View thread for issue
 
 # Assignments
-bd assign <issue-id> <droid>         # Assign (or let queen auto-assign)
+bd assign <issue-id> <agent>         # Assign (or let queen auto-assign)
 bd claim <issue-id>                  # Claim for self
 bd release <issue-id>                # Release assignment
 
@@ -169,7 +169,7 @@ cd ~/Sandbox/queenbee
 # 2. Initialize beads (if not already)
 bd init
 
-# 3. Create the queen droid
+# 3. Create the queen agent
 cat .factory/droids/queen.md  # Already exists
 
 # 4. Start queen daemon
@@ -200,7 +200,7 @@ bd close qb-2 --reason "Implemented"
 - [x] **Single tool** - `bd` + queen extensions, not bd + Agent Mail
 - [x] **Git-backed** - JSONL only, no SQLite, no HTTP servers
 - [x] **CLI-first** - Commands, not MCP tools
-- [x] **Droid identities** - From `.factory/droids/`, not random names
+- [x] **Agent identities** - From `.factory/droids/`, not random names
 - [x] **Multi-worktree** - Shared DB, coordinated assignment
 - [x] **Unified TUI** - Issues + messages + reservations + worktrees in one view
 - [x] **Queen orchestration** - Automated decomposition and assignment
@@ -212,7 +212,7 @@ bd close qb-2 --reason "Implemented"
 - [ ] Separate messaging tool
 - [ ] Generic swarm (100+ agents) - optimize for 5-10 specialists
 - [ ] Human orchestration burden - queen automates assignment
-- [ ] Random agent names - use droid identities
+- [ ] Random agent names - use agent identities
 
 ## Project Status
 
@@ -228,8 +228,8 @@ bd close qb-2 --reason "Implemented"
 - [ ] File reservation system
 - [ ] CLI commands
 
-**Phase 2: Queen Droid**
-- [ ] Droid definition
+**Phase 2: Queen Agent**
+- [ ] Agent definition
 - [ ] Decomposition logic
 - [ ] Assignment algorithm
 - [ ] Daemon mode
@@ -256,6 +256,6 @@ MIT
 ## Related Projects
 
 - [Beads](https://github.com/jeffrydegrande/beads) - Git-backed issue tracker (foundation)
-- [Factory](https://factory.ai) - AI agent platform (droid system)
+- [Factory](https://factory.ai) - AI agent platform (agent system)
 - [Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail) - MCP coordination (what we're replacing)
 - [Claude Flow](https://github.com/Dicklesworthstone/claude-flow) - TypeScript orchestration (inspiration)
