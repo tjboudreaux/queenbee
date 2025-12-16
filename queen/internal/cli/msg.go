@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/tjboudreaux/queenbee/queen/internal/beads"
 	"github.com/tjboudreaux/queenbee/queen/internal/config"
 	"github.com/tjboudreaux/queenbee/queen/internal/messages"
+	"github.com/tjboudreaux/queenbee/queen/internal/registry"
 )
 
 func getJSONFlag(cmd *cobra.Command) bool {
@@ -22,15 +24,18 @@ func getJSONFlag(cmd *cobra.Command) bool {
 var msgCmd = &cobra.Command{
 	Use:   "msg",
 	Short: "Manage inter-agent messages",
-	Long:  "Send, receive, and manage messages between droids.",
+	Long:  "Send, receive, and manage messages between agents.",
 }
 
 var msgSendCmd = &cobra.Command{
 	Use:   "send <to> <body>",
-	Short: "Send a message to another droid",
-	Long:  "Send a message to another droid. Body can be inline or read from stdin with -.",
-	Args:  cobra.MinimumNArgs(1),
-	RunE:  runMsgSend,
+	Short: "Send a message to another agent",
+	Long: `Send a message to another agent. Body can be inline or read from stdin with -.
+
+Special recipients:
+  @all    Broadcast to all registered agents`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: runMsgSend,
 }
 
 var msgInboxCmd = &cobra.Command{
@@ -130,7 +135,7 @@ func runMsgSend(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	from, err := config.GetCurrentDroid(cmd, cfg)
+	from, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -148,20 +153,53 @@ func runMsgSend(cmd *cobra.Command, args []string) error {
 		subject = "Message from " + from
 	}
 
-	msg, err := store.Send(from, to, subject, body, messages.SendOptions{
-		IssueID:    msgIssue,
-		Importance: msgImportance,
-	})
-	if err != nil {
-		return err
+	// Handle @all broadcast
+	recipients := []string{to}
+	if to == "@all" {
+		workDir := filepath.Dir(beadsDir)
+		reg, err := registry.Load(workDir)
+		if err != nil {
+			return fmt.Errorf("loading registry for broadcast: %w", err)
+		}
+		recipients = reg.ListAgents()
+		// Filter out sender from broadcast
+		filtered := make([]string, 0, len(recipients))
+		for _, r := range recipients {
+			if r != from {
+				filtered = append(filtered, r)
+			}
+		}
+		recipients = filtered
+		if len(recipients) == 0 {
+			return fmt.Errorf("no agents to broadcast to")
+		}
+	}
+
+	var sentMsgs []*messages.Message
+	for _, recipient := range recipients {
+		msg, err := store.Send(from, recipient, subject, body, messages.SendOptions{
+			IssueID:    msgIssue,
+			Importance: msgImportance,
+		})
+		if err != nil {
+			return err
+		}
+		sentMsgs = append(sentMsgs, msg)
 	}
 
 	if getJSONFlag(cmd) {
-		return json.NewEncoder(os.Stdout).Encode(msg)
+		if len(sentMsgs) == 1 {
+			return json.NewEncoder(os.Stdout).Encode(sentMsgs[0])
+		}
+		return json.NewEncoder(os.Stdout).Encode(sentMsgs)
 	}
 
 	green := color.New(color.FgGreen).SprintFunc()
-	fmt.Printf("%s Message sent: %s\n", green("✓"), msg.ID)
+	if len(sentMsgs) == 1 {
+		fmt.Printf("%s Message sent: %s\n", green("✓"), sentMsgs[0].ID)
+	} else {
+		fmt.Printf("%s Broadcast sent to %d agents\n", green("✓"), len(sentMsgs))
+	}
 	return nil
 }
 
@@ -176,7 +214,7 @@ func runMsgInbox(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	droid, err := config.GetCurrentDroid(cmd, cfg)
+	agent, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -199,7 +237,7 @@ func runMsgInbox(cmd *cobra.Command, args []string) error {
 		opts.Since = t
 	}
 
-	msgs, err := store.GetInbox(droid, opts)
+	msgs, err := store.GetInbox(agent, opts)
 	if err != nil {
 		return err
 	}
@@ -213,7 +251,7 @@ func runMsgInbox(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("📬 Inbox for %s (%d messages)\n\n", droid, len(msgs))
+	fmt.Printf("📬 Inbox for %s (%d messages)\n\n", agent, len(msgs))
 	for _, m := range msgs {
 		printMessageSummary(m)
 	}
@@ -247,7 +285,7 @@ func runMsgReply(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	from, err := config.GetCurrentDroid(cmd, cfg)
+	from, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -350,7 +388,7 @@ func runMsgSent(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	droid, err := config.GetCurrentDroid(cmd, cfg)
+	agent, err := config.GetCurrentAgent(cmd, cfg)
 	if err != nil {
 		return err
 	}
@@ -360,7 +398,7 @@ func runMsgSent(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	msgs, err := store.GetSent(droid, msgLimit)
+	msgs, err := store.GetSent(agent, msgLimit)
 	if err != nil {
 		return err
 	}
@@ -374,7 +412,7 @@ func runMsgSent(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("📤 Sent by %s (%d messages)\n\n", droid, len(msgs))
+	fmt.Printf("📤 Sent by %s (%d messages)\n\n", agent, len(msgs))
 	for _, m := range msgs {
 		printMessageSummary(m)
 	}
