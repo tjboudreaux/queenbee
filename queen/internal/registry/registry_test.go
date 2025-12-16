@@ -248,6 +248,190 @@ agents:
 	}
 }
 
+func TestBuildCommand_T_AGENT(t *testing.T) {
+	dir := t.TempDir()
+	
+	content := `
+version: 1
+
+agents:
+  ui-engineer:
+    skills: [react]
+    commands:
+      work_issue:
+        run: "queen msg send T_AGENT 'Working on T_ISSUE_ID'"
+      notify:
+        run: "echo Agent T_AGENT started"
+      both_placeholders:
+        run: "factory run --agent T_AGENT --issue T_ISSUE_ID --verbose"
+`
+	
+	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		agent   string
+		command string
+		issueID string
+		want    string
+	}{
+		{
+			name:    "T_AGENT replacement",
+			agent:   "ui-engineer",
+			command: "notify",
+			issueID: "qb-123",
+			want:    "echo Agent ui-engineer started",
+		},
+		{
+			name:    "both T_ISSUE_ID and T_AGENT",
+			agent:   "ui-engineer",
+			command: "work_issue",
+			issueID: "qb-456",
+			want:    "queen msg send ui-engineer 'Working on qb-456'",
+		},
+		{
+			name:    "both placeholders reversed order",
+			agent:   "ui-engineer",
+			command: "both_placeholders",
+			issueID: "gb-789",
+			want:    "factory run --agent ui-engineer --issue gb-789 --verbose",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := reg.BuildCommand(tt.agent, tt.command, tt.issueID)
+			if err != nil {
+				t.Fatalf("BuildCommand() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("BuildCommand() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildCommand_T_AGENT_EdgeCases(t *testing.T) {
+	dir := t.TempDir()
+	
+	content := `
+version: 1
+
+agents:
+  hyphen-agent:
+    skills: [test]
+    commands:
+      work_issue:
+        run: "echo T_AGENT"
+  underscore_agent:
+    skills: [test]
+    commands:
+      work_issue:
+        run: "echo T_AGENT"
+  agent123:
+    skills: [test]
+    commands:
+      work_issue:
+        run: "echo T_AGENT"
+`
+	
+	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		agent string
+		want  string
+	}{
+		{"hyphenated agent", "hyphen-agent", "echo hyphen-agent"},
+		{"underscored agent", "underscore_agent", "echo underscore_agent"},
+		{"numeric agent", "agent123", "echo agent123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := reg.BuildCommand(tt.agent, "work_issue", "qb-1")
+			if err != nil {
+				t.Fatalf("BuildCommand() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("BuildCommand() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildCommand_T_AGENT_NoReplacement(t *testing.T) {
+	dir := t.TempDir()
+	
+	content := `
+version: 1
+
+agents:
+  test-agent:
+    skills: [test]
+    commands:
+      no_placeholders:
+        run: "echo hello world"
+      case_sensitive:
+        run: "echo t_agent T_Agent T_AGENT"
+`
+	
+	err := os.WriteFile(filepath.Join(dir, ".queen.yaml"), []byte(content), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		command string
+		want    string
+	}{
+		{
+			name:    "no placeholders",
+			command: "no_placeholders",
+			want:    "echo hello world",
+		},
+		{
+			name:    "case sensitive - only exact T_AGENT replaced",
+			command: "case_sensitive",
+			want:    "echo t_agent T_Agent test-agent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := reg.BuildCommand("test-agent", tt.command, "qb-1")
+			if err != nil {
+				t.Fatalf("BuildCommand() error = %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("BuildCommand() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCommandHash(t *testing.T) {
 	hash1 := CommandHash("ui-engineer", "work_issue", "gb-123")
 	hash2 := CommandHash("ui-engineer", "work_issue", "gb-123")

@@ -243,13 +243,15 @@ func (r *Registry) ruleMatches(rule Rule, labels []string, issueType, priority s
 	return true
 }
 
-// BuildCommand builds a command string with T_ISSUE_ID replaced.
+// BuildCommand builds a command string with T_ISSUE_ID and T_AGENT replaced.
 func (r *Registry) BuildCommand(agentName, commandName, issueID string) (string, error) {
 	cmd, ok := r.GetCommand(agentName, commandName)
 	if !ok {
 		return "", fmt.Errorf("command %q not found for agent %q", commandName, agentName)
 	}
-	return strings.ReplaceAll(cmd.Run, "T_ISSUE_ID", issueID), nil
+	result := strings.ReplaceAll(cmd.Run, "T_ISSUE_ID", issueID)
+	result = strings.ReplaceAll(result, "T_AGENT", agentName)
+	return result, nil
 }
 
 // CommandHash generates a unique hash for a command instance.

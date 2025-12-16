@@ -195,8 +195,9 @@ func (e *WorkflowExecutor) executeCommand(ctx context.Context, commandName strin
 		return []StepResult{result}, result.Error
 	}
 
-	// Build the command string with T_ISSUE_ID replaced
+	// Build the command string with placeholders replaced
 	cmdStr := strings.ReplaceAll(cmd.Run, "T_ISSUE_ID", e.issueID)
+	cmdStr = strings.ReplaceAll(cmdStr, "T_AGENT", e.agent)
 
 	// Check if we can run (respects max_concurrent and max_agents)
 	canRun, reason := e.runner.CanRun(e.agent, commandName, e.issueID)
@@ -228,8 +229,9 @@ func (e *WorkflowExecutor) executeExec(ctx context.Context, shellCmd string, ind
 		Command:   shellCmd,
 	}
 
-	// Replace T_ISSUE_ID in the command
+	// Replace placeholders in the command
 	cmdStr := strings.ReplaceAll(shellCmd, "T_ISSUE_ID", e.issueID)
+	cmdStr = strings.ReplaceAll(cmdStr, "T_AGENT", e.agent)
 
 	// Execute the shell command
 	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
