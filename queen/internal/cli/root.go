@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +19,22 @@ var rootCmd = &cobra.Command{
 for coordinating multiple AI agents working on the same codebase.
 
 All state is stored in .beads/queen_*.jsonl files, shared across git worktrees.`,
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		// Skip update check for certain commands
+		skipCommands := map[string]bool{
+			"update":     true,
+			"version":    true,
+			"help":       true,
+			"completion": true,
+		}
+		if skipCommands[cmd.Name()] {
+			return
+		}
+		// Only show banner if output is a terminal
+		if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
+			CheckAndPrintUpdateBanner()
+		}
+	},
 }
 
 func SetVersionInfo(v, c, d string) {
