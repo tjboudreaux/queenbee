@@ -351,7 +351,7 @@ verify_installation() {
         echo ""
         echo "Get started:"
         echo "  cd your-project"
-        echo "  queen init"
+        echo "  bd init          # Initialize beads (if not already done)"
         echo "  queen status"
         echo ""
         return 0

@@ -65,11 +65,13 @@ queen version
 ## Getting Started
 
 ```bash
-# Initialize queen in your project
+# Navigate to your project
 cd your-project
-queen init
 
-# Check status
+# Initialize beads (if not already done)
+bd init
+
+# Check queen status
 queen status
 
 # Get help
