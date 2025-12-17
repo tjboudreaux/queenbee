@@ -38,12 +38,8 @@ agents:                   # Registered agents
 Multiple methods, in priority order:
 
 1. `--agent` flag: `queen msg send --agent=ui-engineer queen "Hello"`
-2. `--droid` flag (deprecated): `queen msg send --droid=ui-engineer queen "Hello"`
-3. `QUEEN_AGENT` env var: `export QUEEN_AGENT=ui-engineer`
-4. `QUEEN_DROID` env var (deprecated): `export QUEEN_DROID=ui-engineer`
-5. `FACTORY_DROID` env var: `export FACTORY_DROID=ui-engineer`
-6. Config file `agent` key
-7. Config file `droid` key (deprecated)
+2. `QUEEN_AGENT` env var: `export QUEEN_AGENT=ui-engineer`
+3. Config file `agent` key in `.queen.yaml`
 
 ## Commands
 
@@ -58,9 +54,8 @@ queen status             # Check daemon status
 ### Live Monitoring
 
 ```bash
-queen watch              # Live dashboard (refreshes every 2s)
-queen watch -i 5         # Refresh every 5 seconds
-queen watch --once       # Single snapshot, no auto-refresh
+queen watch              # Live dashboard (refreshes every 5s)
+queen watch -i 2s        # Refresh every 2 seconds
 ```
 
 The watch dashboard shows:
@@ -106,8 +101,8 @@ queen claim <issue-id>
 queen release <issue-id>
 
 # List assignments
-queen assign list
-queen assign list --agent=ui-engineer
+queen assignments
+queen assignments --agent=ui-engineer
 ```
 
 ### File Reservations
@@ -144,8 +139,8 @@ queen config set auto_assign.enabled true
 queen registry list
 queen registry list --json
 
-# Show specific agent
-queen registry show ui-engineer
+# Show registry configuration
+queen registry show
 ```
 
 ## Agent Protocol
@@ -200,12 +195,6 @@ Queen extends Beads with coordination capabilities:
 ```
 
 All state is Git-backed JSONL - no SQLite, no HTTP servers.
-
-## Terminology
-
-Queen uses "agent" terminology:
-- **Agent**: An AI agent identity (from `.factory/droids/`)
-- The `--droid` flag and `Droid` fields are deprecated but supported for backward compatibility
 
 ## Development
 

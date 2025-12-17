@@ -289,7 +289,13 @@ build_from_source() {
         cd queenbee/queen
         log_info "Building binary..."
 
-        if go build -o queen ./cmd/queen; then
+        # Get version info for ldflags
+        local build_version=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+        local build_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        local build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        local ldflags="-X main.Version=${build_version} -X main.Commit=${build_commit} -X main.Date=${build_date}"
+
+        if go build -ldflags "$ldflags" -o queen ./cmd/queen; then
             local install_dir="${INSTALL_DIR:-}"
             if [ -z "$install_dir" ]; then
                 if [[ -w /usr/local/bin ]]; then

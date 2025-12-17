@@ -4,25 +4,6 @@
 
 assert_lefthook_installed: true
 
-pre-commit:
-  parallel: true
-  commands:
-    # Queen (Go) checks - only run if Go files changed
-    queen-fmt:
-      root: queen/
-      glob: "*.go"
-      run: gofmt -l . | grep -q . && { echo "Run 'go fmt ./...' to fix formatting"; exit 1; } || exit 0
-
-    queen-lint:
-      root: queen/
-      glob: "*.go"
-      run: golangci-lint run
-
-    queen-test:
-      root: queen/
-      glob: "*.go"
-      run: go test -short ./...
-
 commit-msg:
   commands:
     conventional-commits:
@@ -51,10 +32,22 @@ commit-msg:
         fi
 
 pre-push:
-  parallel: true
+  parallel: false
   commands:
     # Full test suite with race detection before push
     queen-test-full:
       root: queen/
       glob: "*.go"
       run: go test -race ./...
+    
+    # Update docs before push
+    update-docs:
+      run: ./scripts/update-docs.sh --commit
+      interactive: true
+
+# Manual hooks - run with: lefthook run <hook-name>
+update-docs:
+  commands:
+    update-and-commit:
+      run: ./scripts/update-docs.sh --commit
+      interactive: true

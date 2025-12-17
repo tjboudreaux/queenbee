@@ -5,288 +5,168 @@
 [![CI](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml/badge.svg)](https://github.com/tjboudreaux/queenbee/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/tjboudreaux/queenbee?include_prereleases)](https://github.com/tjboudreaux/queenbee/releases)
 
-**Unified AI Agent Orchestration for Factory Agents**
+**Multi-Agent Coordination for AI-Assisted Development**
 
-QueenBee is a CLI-first orchestration layer that extends [Beads](https://github.com/jeffrydegrande/beads) with multi-agent coordination capabilities. It replaces MCP-based Agent Mail with git-backed messaging, automated task assignment via the Queen agent, and a unified TUI for observing all agent activity.
+QueenBee is a CLI tool that extends [Beads](https://github.com/jeffrydegrande/beads) with multi-agent coordination capabilities. It provides git-backed messaging, automated task assignment, file reservations, and a unified interface for orchestrating multiple AI agents working on the same codebase.
 
-## Why QueenBee?
+## Features
 
-### The Problem
-
-Current multi-agent workflows suffer from:
-
-1. **Tool Sprawl** - Beads for issues, Agent Mail for messaging, separate TUIs for each
-2. **MCP Brittleness** - HTTP server dependencies, dual persistence (SQLite + Git), sync failures
-3. **Manual Orchestration** - Humans must assign work, monitor agents, resolve conflicts
-4. **Worktree Blindness** - No visibility into parallel work across git worktrees
-
-### The Solution
-
-QueenBee provides:
-
-| Feature | Agent Mail | QueenBee |
-|---------|------------|----------|
-| **Messaging** | Separate MCP server | Beads extension (`bd msg`) |
-| **File Reservations** | HTTP API | Beads extension (`bd reserve`) |
-| **Task Assignment** | Manual | Automated (Queen agent) |
-| **Persistence** | SQLite + Git (dual) | Git-only (JSONL) |
-| **TUI** | Separate tool | Unified with Beads (`bv`) |
-| **Worktree Support** | Per-worktree servers | Shared DB, multi-worktree view |
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              HUMAN OPERATOR                                  │
-│                    (Strategic direction, approvals)                          │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            QUEEN AGENT                                       │
-│   Factory custom agent (Opus) running via `droid exec --headless`           │
-│   - Monitors .beads/ for new issues and status changes                      │
-│   - Decomposes epics into tasks with dependencies                           │
-│   - Assigns work to specialist agents based on skills                       │
-│   - Resolves conflicts and re-routes blocked work                           │
-│   - Escalates to human when confidence is low                               │
-└─────────────────────────────────────────────────────────────────────────────┘
-                    │               │               │
-          ┌─────────┴─────────┬─────┴─────┬─────────┴─────────┐
-          ▼                   ▼           ▼                   ▼
-┌──────────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
-│  ux-strategist   │ │  ui-engineer  │ │ growth-engnr  │ │ quality-eng   │
-│  (design work)   │ │  (frontend)   │ │  (analytics)  │ │  (testing)    │
-└──────────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
-          │                   │               │                   │
-          └───────────────────┴───────────────┴───────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         BEADS + QUEEN EXTENSIONS                             │
-│   .beads/                                                                    │
-│   ├── issues.jsonl          # Standard Beads issues                         │
-│   ├── queen_assignments.jsonl   # Who is assigned to what                   │
-│   ├── queen_messages.jsonl      # Inter-agent communication                 │
-│   └── queen_reservations.jsonl  # File lock claims                          │
-│                                                                              │
-│   Shared across all git worktrees via single .beads/ directory              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+- **Inter-Agent Messaging** - Agents communicate via `queen msg` commands
+- **Task Assignment** - Automated or manual assignment of issues to agents
+- **File Reservations** - Prevent merge conflicts with exclusive file locks
+- **Work Queue** - View ready, blocked, and assigned work
+- **Live Dashboard** - Real-time monitoring with `queen watch`
+- **Git-Backed** - All state stored as JSONL in `.beads/`, no external databases
+- **Multi-Worktree** - Shared coordination across git worktrees
 
 ## Installation
 
-### Quick Install
-
-**macOS/Linux** (recommended):
+**macOS/Linux:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/tjboudreaux/queenbee/main/queen/install.sh | bash
 ```
 
-**Homebrew** (macOS/Linux):
-```bash
-brew tap tjboudreaux/tap
-brew install queen
-```
-
-**Go**:
+**Go:**
 ```bash
 go install github.com/tjboudreaux/queenbee/queen/cmd/queen@latest
 ```
 
-### Verify Installation
-
+**Verify:**
 ```bash
 queen version
 ```
 
-See [queen/INSTALL.md](queen/INSTALL.md) for detailed installation options and platform-specific instructions.
-
-## Core Concepts
-
-### 1. Agents as Identity
-
-Agent identities come from Factory's `.factory/droids/` directory. Each agent has:
-- A name (e.g., `ui-engineer`, `queen`)
-- A model (e.g., `claude-opus-4-5-20251101`)
-- Skills and capabilities
-- Autonomy level
-
-No more random adjective+noun names like "BlueMountain" - agents are the identity system.
-
-### 2. Git-Backed Everything
-
-All state lives in `.beads/` as JSONL files:
-- **No SQLite** - Pure append-only logs, git-mergeable
-- **No HTTP servers** - CLI reads/writes files directly
-- **No sync issues** - Git is the single source of truth
-
-### 3. Queen Orchestration
-
-The Queen agent runs as a background process:
-```bash
-# Start queen (daemon mode)
-queen start
-
-# Or run interactively
-droid exec queen "Process inbox and assign ready work"
-```
-
-Queen responsibilities:
-- **Decomposition** - Break epics into tasks with proper dependencies
-- **Assignment** - Match tasks to agents based on skills and availability
-- **Conflict Resolution** - Handle overlapping file reservations
-- **Escalation** - Flag decisions requiring human input
-
-### 4. Multi-Worktree Coordination
-
-Git worktrees share the same `.beads/` database:
-
-```
-repo/
-├── .beads/               # Shared coordination database
-├── main/                 # Main worktree
-│   └── .beads -> ../.beads
-├── feature-auth/         # Feature worktree
-│   └── .beads -> ../.beads
-└── feature-ui/           # Another feature worktree
-    └── .beads -> ../.beads
-```
-
-Workers see all activity, Queen assigns based on worktree boundaries.
-
-## CLI Commands
-
-### Standard Beads (unchanged)
-```bash
-bd init                    # Initialize beads
-bd create "Task title"     # Create issue
-bd list                    # List issues
-bd ready                   # Show unblocked work
-bd close <id>              # Close issue
-bd sync                    # Sync with git
-```
-
-### Queen Extensions
-```bash
-# Messaging
-bd msg send <to-agent> "message"     # Send message
-bd msg inbox                          # View inbox
-bd msg thread <issue-id>              # View thread for issue
-
-# Assignments
-bd assign <issue-id> <agent>         # Assign (or let queen auto-assign)
-bd claim <issue-id>                  # Claim for self
-bd release <issue-id>                # Release assignment
-
-# File Reservations
-bd reserve <paths...>                # Reserve files
-bd reserved                          # List reservations
-bd unreserve <paths...>              # Release files
-
-# Queen Operations
-queen start                          # Start queen daemon
-queen status                         # Check queen status
-queen assign                         # Trigger assignment cycle
-queen stop                           # Stop queen daemon
-```
+See [queen/INSTALL.md](queen/INSTALL.md) for more options.
 
 ## Quick Start
 
 ```bash
-# 1. Clone and enter project
-cd ~/Sandbox/queenbee
-
-# 2. Initialize beads (if not already)
+# Initialize beads in your project
 bd init
 
-# 3. Create the queen agent
-cat .factory/droids/queen.md  # Already exists
+# Set your agent identity
+export QUEEN_AGENT=my-agent
 
-# 4. Start queen daemon
-queen start
+# Create and assign work
+bd create "Implement feature X" -t task -p 1
+queen claim qb-1
 
-# 5. Create some work
-bd create "Implement authentication" -t epic -p 1
-bd create "Design auth flow" -t task -p 1
+# Reserve files before editing
+queen reserve src/feature/**
 
-# 6. Queen auto-assigns based on skills
-queen assign
+# Communicate with other agents
+queen msg send other-agent "Starting work on qb-1"
 
-# 7. Check assignments
-bd list --assigned
-
-# 8. Claim and work
-bd claim qb-2
-bd reserve src/auth/**
-# ... do work ...
-bd unreserve src/auth/**
-bd close qb-2 --reason "Implemented"
+# When done
+queen unreserve --all
+bd close qb-1 --reason="Implemented"
 ```
 
-## Design Goals
+## Commands
 
-### What We Want
+### Daemon
+```bash
+queen start              # Start background daemon
+queen stop               # Stop daemon
+queen status             # Check daemon status
+queen watch              # Live monitoring dashboard
+queen watch -i 5s        # Watch with 5 second refresh
+```
 
-- [x] **Single tool** - `bd` + queen extensions, not bd + Agent Mail
-- [x] **Git-backed** - JSONL only, no SQLite, no HTTP servers
-- [x] **CLI-first** - Commands, not MCP tools
-- [x] **Agent identities** - From `.factory/droids/`, not random names
-- [x] **Multi-worktree** - Shared DB, coordinated assignment
-- [x] **Unified TUI** - Issues + messages + reservations + worktrees in one view
-- [x] **Queen orchestration** - Automated decomposition and assignment
+### Messaging
+```bash
+queen msg send <agent> "message"    # Send message
+queen msg send @all "broadcast"     # Broadcast to all
+queen msg inbox                     # View inbox
+queen msg reply <id> "response"     # Reply to message
+queen msg thread <issue-id>         # View issue thread
+```
 
-### What We Don't Want
+### Assignments
+```bash
+queen assign <issue> <agent>  # Assign issue
+queen claim <issue>           # Claim for yourself
+queen release <issue>         # Release assignment
+queen assignments             # List all assignments
+queen assignments --agent=x   # List assignments for agent
+```
 
-- [ ] MCP/HTTP server dependencies
-- [ ] Dual persistence (SQLite + Git) with sync brittleness
-- [ ] Separate messaging tool
-- [ ] Generic swarm (100+ agents) - optimize for 5-10 specialists
-- [ ] Human orchestration burden - queen automates assignment
-- [ ] Random agent names - use agent identities
+### File Reservations
+```bash
+queen reserve <paths...>      # Reserve files
+queen reserve --exclusive     # Exclusive reservation
+queen reserved                # List reservations
+queen unreserve <paths...>    # Release files
+queen unreserve --all         # Release all
+queen conflicts               # Check for conflicts
+```
 
-## Project Status
+### Work Queue
+```bash
+queen queue                   # View work queue
+queen auto-assign             # Auto-assign ready work
+```
 
-**Phase 0: Documentation** ← We are here
-- [x] README.md - This file
-- [x] AGENTS.md - Agent protocol
-- [x] docs/PLAN.md - Implementation roadmap
-- [ ] docs/SCHEMA.md - Extension schema
+### Configuration
+```bash
+queen config get <key>        # Get config value
+queen config set <key> <val>  # Set config value
+queen registry list           # List registered agents
+```
 
-**Phase 1: Queen Extensions (Go)**
-- [ ] Message storage and retrieval
-- [ ] Assignment tracking
-- [ ] File reservation system
-- [ ] CLI commands
+## Configuration
 
-**Phase 2: Queen Agent**
-- [ ] Agent definition
-- [ ] Decomposition logic
-- [ ] Assignment algorithm
-- [ ] Daemon mode
+Create `.queen.yaml` in your project root:
 
-**Phase 3: Unified TUI**
-- [ ] Fork bv/bdui
-- [ ] Multi-worktree panel
-- [ ] Message threads view
-- [ ] Reservation status
+```yaml
+agent: my-agent
+auto_assign:
+  enabled: true
+  default_agent: triage-agent
+agents:
+  - name: frontend-agent
+    skills: [ui, react, css]
+  - name: backend-agent
+    skills: [api, database, go]
+```
 
-**Phase 4: Integration Testing**
-- [ ] Multi-agent workflow test
-- [ ] Worktree coordination test
-- [ ] Queen escalation test
+Agent identity can be set via:
+1. `--agent` flag
+2. `QUEEN_AGENT` environment variable
+3. `agent` key in `.queen.yaml`
 
-## Contributing
+## Architecture
 
-This is an experimental project exploring alternatives to MCP-based agent coordination. The core hypothesis is that git-backed, CLI-first tooling provides better reliability and developer experience than HTTP-based protocols.
+```
+.beads/
+├── issues.jsonl              # Beads issues
+├── queen_assignments.jsonl   # Agent assignments
+├── queen_messages.jsonl      # Inter-agent messages
+└── queen_reservations.jsonl  # File reservations
+```
+
+All state is git-backed JSONL. No SQLite, no HTTP servers, no sync issues.
+
+## Agent Protocol
+
+See [AGENTS.md](AGENTS.md) for the full coordination protocol agents should follow.
+
+**Session start:**
+1. Check inbox: `queen msg inbox`
+2. Claim work: `queen claim <id>`
+3. Reserve files: `queen reserve <paths>`
+4. Announce: `queen msg send queen "[id] Starting: description"`
+
+**Session end:**
+1. Release files: `queen unreserve --all`
+2. Close issue: `bd close <id> --reason="done"`
+3. Notify: `queen msg send queen "[id] Completed"`
+4. Push: `git push`
 
 ## License
 
 MIT
 
-## Related Projects
+## Related
 
-- [Beads](https://github.com/jeffrydegrande/beads) - Git-backed issue tracker (foundation)
-- [Factory](https://factory.ai) - AI agent platform (agent system)
-- [Agent Mail](https://github.com/Dicklesworthstone/mcp_agent_mail) - MCP coordination (what we're replacing)
-- [Claude Flow](https://github.com/Dicklesworthstone/claude-flow) - TypeScript orchestration (inspiration)
+- [Beads](https://github.com/jeffrydegrande/beads) - Git-backed issue tracker
