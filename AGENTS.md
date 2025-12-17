@@ -2,7 +2,13 @@
 
 This document defines how AI agents coordinate work in QueenBee projects. All agents MUST follow this protocol.
 
-> **Terminology Note**: This document uses "droid" to refer to Factory's `.factory/droids/` agent definitions. The Queen CLI uses "agent" terminology internally (e.g., `--agent` flag, `Agent` field). Both terms refer to the same concept: an AI agent identity.
+## Skills
+
+Agents MUST reference skills in `.factory/skills/` for specific tasks. See `.factory/SKILLS.md` for the full registry with MUST/SHOULD/MAY requirements.
+
+| Skill | When to Use |
+|-------|-------------|
+| [Git Commit Messages](/.factory/skills/git-commit-messages.md) | All git commits |
 
 ## Overview
 
@@ -139,7 +145,7 @@ bd msg send queen "[qb-42] Completed: Button component
 - 100% test coverage
 - Unblocks: qb-43, qb-44"
 
-# 4. Sync and push
+# 4. Sync and push (see .factory/skills/git-commit-messages.md)
 bd sync
 git add .
 git commit -m "feat(ui): implement Button component
@@ -390,7 +396,7 @@ pnpm test        # Tests pass
 
 ### Completion Checklist
 
-- [ ] Code changes committed
+- [ ] Code changes committed (using [conventional commit format](/.factory/skills/git-commit-messages.md))
 - [ ] Tests written and passing
 - [ ] Lint/typecheck clean
 - [ ] File reservations released
@@ -460,7 +466,7 @@ bd dep add qb-new discovered-from:qb-42
 Need to stop mid-task:
 
 ```bash
-# 1. Commit current progress
+# 1. Commit current progress (see .factory/skills/git-commit-messages.md)
 git add .
 git commit -m "WIP(qb-42): Button variants 60% complete"
 
