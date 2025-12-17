@@ -113,7 +113,6 @@ queen auto-assign             # Auto-assign ready work
 ```bash
 queen decompose <epic-id>     # Suggest tasks from epic
 queen decompose --dry-run     # Preview without changes
-queen decompose --create      # Create tasks in beads
 ```
 
 ### Configuration
