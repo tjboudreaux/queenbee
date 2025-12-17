@@ -1,3 +1,9 @@
+## [1.0.3](https://github.com/tjboudreaux/queenbee/compare/v1.0.2...v1.0.3) (2025-12-16)
+
+### Bug Fixes
+
+* **ci:** set project_name to queen for correct archive naming ([2f2321a](https://github.com/tjboudreaux/queenbee/commit/2f2321abbe81984eaba80be85511267f192ff13d))
+
 ## [1.0.2](https://github.com/tjboudreaux/queenbee/compare/v1.0.1...v1.0.2) (2025-12-16)
 
 ### Bug Fixes
