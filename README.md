@@ -73,6 +73,13 @@ queen watch              # Live monitoring dashboard
 queen watch -i 5s        # Watch with 5 second refresh
 ```
 
+### Updates
+```bash
+queen update             # Update to latest version
+queen update --check     # Check for updates without installing
+queen version            # Print version information
+```
+
 ### Messaging
 ```bash
 queen msg send <agent> "message"    # Send message

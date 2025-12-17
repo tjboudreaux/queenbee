@@ -61,6 +61,14 @@ queen stop               # Stop the queen daemon
 queen status             # Check daemon status
 ```
 
+### Updates
+
+```bash
+queen update             # Update to latest version
+queen update --check     # Check for updates without installing
+queen version            # Print version information
+```
+
 ### Live Monitoring
 
 ```bash
