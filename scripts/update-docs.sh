@@ -104,8 +104,8 @@ Tasks:
 
 Only make changes if something is actually outdated. Be conservative."
 
-echo -e "${GREEN}Running: droid exec --auto low${NC}"
-run_droid "$PROMPT" "--auto low"
+echo -e "${GREEN}Running: droid exec --auto medium${NC}"
+run_droid "$PROMPT" "--auto medium"
 
 # Check if there are changes
 if git diff --quiet README.md queen/README.md 2>/dev/null; then
