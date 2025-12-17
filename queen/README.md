@@ -15,22 +15,32 @@ mv queen /usr/local/bin/
 
 ## Configuration
 
-Queen uses a `.queen.yaml` file in your project root:
+Queen uses two configuration files:
+
+**`.queen.yaml`** (project root) - Agent registry and orchestration rules:
 
 ```yaml
-agent: ui-engineer        # Your agent identity (or use --agent flag)
-auto_assign:
-  enabled: true
-  default_agent: triage-agent
-agents:                   # Registered agents
-  - name: ui-engineer
-    skills:
-      - frontend
-      - react
-  - name: growth-engineer
-    skills:
-      - backend
-      - analytics
+version: 1
+daemon:
+  max_agents: 4
+  poll_interval: 30s
+agents:
+  ui-engineer:
+    skills: [frontend, react]
+  growth-engineer:
+    skills: [backend, analytics]
+rules:
+  - match:
+      labels: [frontend, ui]
+    agent: ui-engineer
+```
+
+**`.beads/queen_config.yaml`** - Runtime settings (managed via `queen config`):
+
+```bash
+queen config set agent ui-engineer
+queen config set ttl 4h
+queen config list
 ```
 
 ### Setting Your Agent Identity
@@ -39,7 +49,7 @@ Multiple methods, in priority order:
 
 1. `--agent` flag: `queen msg send --agent=ui-engineer queen "Hello"`
 2. `QUEEN_AGENT` env var: `export QUEEN_AGENT=ui-engineer`
-3. Config file `agent` key in `.queen.yaml`
+3. `queen config set agent ui-engineer`
 
 ## Commands
 

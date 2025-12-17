@@ -103,8 +103,17 @@ queen conflicts               # Check for conflicts
 
 ### Work Queue
 ```bash
-queen queue                   # View work queue
+queen queue list              # List queued work items
+queen queue stats             # Show queue statistics
+queen queue clear             # Clear all queued work
 queen auto-assign             # Auto-assign ready work
+```
+
+### Task Decomposition
+```bash
+queen decompose <epic-id>     # Suggest tasks from epic
+queen decompose --dry-run     # Preview without changes
+queen decompose --create      # Create tasks in beads
 ```
 
 ### Configuration
@@ -116,24 +125,37 @@ queen registry list           # List registered agents
 
 ## Configuration
 
-Create `.queen.yaml` in your project root:
+Queen uses two configuration files:
+
+**`.queen.yaml`** (project root) - Agent registry and orchestration rules:
 
 ```yaml
-agent: my-agent
-auto_assign:
-  enabled: true
-  default_agent: triage-agent
+version: 1
+daemon:
+  max_agents: 4
+  poll_interval: 30s
 agents:
-  - name: frontend-agent
+  frontend-agent:
     skills: [ui, react, css]
-  - name: backend-agent
+  backend-agent:
     skills: [api, database, go]
+rules:
+  - match:
+      labels: [frontend, ui]
+    agent: frontend-agent
 ```
 
-Agent identity can be set via:
+**`.beads/queen_config.yaml`** - Runtime settings (managed via `queen config`):
+
+```bash
+queen config set agent my-agent
+queen config set ttl 4h
+```
+
+Agent identity can be set via (in priority order):
 1. `--agent` flag
 2. `QUEEN_AGENT` environment variable
-3. `agent` key in `.queen.yaml`
+3. `queen config set agent <name>`
 
 ## Architecture
 
