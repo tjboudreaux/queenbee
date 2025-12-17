@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
 # Update documentation based on code changes
-# Usage: ./scripts/update-docs.sh [--check|--commit|--push]
+# Usage: ./scripts/update-docs.sh [options]
 #
 # Options:
-#   --check    Only check if docs are outdated (don't modify)
-#   --commit   Update docs and commit changes
-#   --push     Update docs, commit, and push to remote
-#   (default)  Update docs only (no commit)
+#   --check        Only check if docs are outdated (don't modify)
+#   --commit       Update docs and commit changes
+#   --push         Update docs, commit, and push to remote
+#   --can-destroy  Allow deleting documentation files (default: safe mode)
+#   (default)      Update docs only (no commit, safe mode)
 #
 
 set -e
@@ -22,11 +23,16 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 MODE="update"
-case "$1" in
-    --check)  MODE="check" ;;
-    --commit) MODE="commit" ;;
-    --push)   MODE="push" ;;
-esac
+CAN_DESTROY=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --check)       MODE="check" ;;
+        --commit)      MODE="commit" ;;
+        --push)        MODE="push" ;;
+        --can-destroy) CAN_DESTROY=true ;;
+    esac
+done
 
 # Check if droid command exists
 if ! command -v droid &> /dev/null; then
@@ -86,9 +92,14 @@ fi
 
 # Update mode (also used by commit and push)
 echo -e "${GREEN}Updating documentation...${NC}"
+if $CAN_DESTROY; then
+    echo -e "${YELLOW}(destroy mode enabled)${NC}"
+fi
 echo ""
 
-PROMPT="Update the documentation to reflect the current state of the codebase.
+if $CAN_DESTROY; then
+    # Permissive mode - can delete files
+    PROMPT="Update the documentation to reflect the current state of the codebase.
 
 Recent commits:
 $RECENT_CHANGES
@@ -100,9 +111,40 @@ Tasks:
 1. Run 'queen --help' and verify README command documentation is accurate
 2. Check that features listed are actually implemented
 3. Update any outdated information
-4. Keep the documentation concise and agent-agnostic (no Factory-specific references)
+4. Remove or delete any obsolete documentation files
+5. Keep the documentation concise and agent-agnostic (no Factory-specific references)
 
 Only make changes if something is actually outdated. Be conservative."
+else
+    # Safe mode - no file deletion, create tasks for destructive changes
+    PROMPT="Update the documentation to reflect the current state of the codebase.
+
+Recent commits:
+$RECENT_CHANGES
+
+Recently changed files:
+$CHANGED_FILES
+
+IMPORTANT CONSTRAINTS:
+- You may ONLY edit existing documentation files (README.md, queen/README.md, etc.)
+- You may ONLY remove stale references, outdated sections, or incorrect information WITHIN files
+- You must NOT delete any documentation files
+- You must NOT create new documentation files
+
+If you determine that a documentation file should be deleted or a major restructuring is needed:
+1. Do NOT delete the file
+2. Instead, run: bd create \"docs: <description of what needs to be done>\" -t task -p 2
+3. Report to the user that a task was created for manual review
+
+Tasks:
+1. Run 'queen --help' and verify README command documentation is accurate
+2. Check that features listed are actually implemented
+3. Update any outdated information within existing files
+4. Remove stale references and outdated sections within files
+5. Keep the documentation concise and agent-agnostic (no Factory-specific references)
+
+Only make changes if something is actually outdated. Be conservative."
+fi
 
 echo -e "${GREEN}Running: droid exec --auto medium${NC}"
 run_droid "$PROMPT" "--auto medium"
