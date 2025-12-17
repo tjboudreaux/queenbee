@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/tjboudreaux/queenbee/compare/v1.1.0...v1.2.0) (2025-12-17)
+
+### Features
+
+* **queen:** add self-update feature ([3dce02d](https://github.com/tjboudreaux/queenbee/commit/3dce02dc9f996262a80c557bbec627bef98b5e4b))
+
 ## [1.1.0](https://github.com/tjboudreaux/queenbee/compare/v1.0.3...v1.1.0) (2025-12-17)
 
 ### Features
