@@ -1,3 +1,14 @@
+## [1.1.0](https://github.com/tjboudreaux/queenbee/compare/v1.0.3...v1.1.0) (2025-12-17)
+
+### Features
+
+* add skills registry with git commit messages skill ([06807d9](https://github.com/tjboudreaux/queenbee/commit/06807d968481e42c344aab3c700e8a5b00b18820))
+* **docs:** add safe mode for doc updates, --can-destroy flag for permissive mode ([31322b0](https://github.com/tjboudreaux/queenbee/commit/31322b0a34916c07846e3cee6e813027f2cfbc7e))
+
+### Bug Fixes
+
+* version info embedding and streamline documentation ([82600c3](https://github.com/tjboudreaux/queenbee/commit/82600c387b545af37c1ca27f748c2444c09160f8))
+
 ## [1.0.3](https://github.com/tjboudreaux/queenbee/compare/v1.0.2...v1.0.3) (2025-12-16)
 
 ### Bug Fixes
